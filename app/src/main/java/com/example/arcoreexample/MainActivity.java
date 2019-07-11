@@ -6,11 +6,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.graphics.Point;
 import android.opengl.GLES20;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.widget.ImageView;
@@ -26,6 +29,7 @@ import com.google.ar.core.Plane;
 import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.ar.core.SharedCamera;
+import com.google.ar.core.TrackingState;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
 import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
@@ -33,7 +37,9 @@ import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException;
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException;
 import com.google.ar.sceneform.AnchorNode;
+import com.google.ar.sceneform.FrameTime;
 import com.google.ar.sceneform.Node;
+import com.google.ar.sceneform.Scene;
 import com.google.ar.sceneform.math.Quaternion;
 import com.google.ar.sceneform.math.Vector3;
 import com.google.ar.sceneform.rendering.ModelRenderable;
@@ -42,6 +48,7 @@ import com.google.ar.sceneform.ux.ArFragment;
 import com.google.ar.sceneform.ux.TransformableNode;
 
 import java.util.EnumSet;
+import java.util.List;
 
 import javax.microedition.khronos.opengles.GL10;
 
@@ -50,6 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = MainActivity.class.getSimpleName();
     protected boolean ar_core_enabled = false;
     protected boolean mUserRequestedInstall = true;
+    protected boolean isFirstStart = true;
     private static final double MIN_OPENGL_VERSION = 3.0;
     private Session mSession;
     private ArFragment arFragment;
@@ -57,17 +65,26 @@ public class MainActivity extends AppCompatActivity {
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
 
+    private  Display display;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        display = getWindowManager().getDefaultDisplay();
         checkArCoreIsEnabled();
         if( !checkIsSupportedDeviceOrFinish(this) ) {
             return;
         }
         arFragment = (ArFragment) getSupportFragmentManager().findFragmentById(R.id.ar_fragment);
 //        arFragment.getArSceneView().getPlaneRenderer().setEnabled(false);
-
+//        arFragment.getArSceneView().getScene().setOnUpdateListener(this::onUpdate);
+        arFragment.getArSceneView().getScene().addOnUpdateListener(new Scene.OnUpdateListener() {
+            @Override
+            public void onUpdate(FrameTime frameTime) {
+                initScene();
+            }
+        });
         ModelRenderable.builder()
                 .setSource(this, R.raw.andy)
                 .build()
@@ -92,7 +109,6 @@ public class MainActivity extends AppCompatActivity {
         arFragment.setOnTapArPlaneListener((HitResult hitResult, Plane plane, MotionEvent motionEvent) -> {
             float[] pos = { 0,0,-1 };
             float[] rotation = {0,0,0,1};
-//            Anchor anchor = arFragment.getArSceneView().getSession().createAnchor(new Pose(pos, rotation));
             Anchor anchor = hitResult.createAnchor();
             AnchorNode anchorNode = new AnchorNode(anchor);
             anchorNode.setParent(arFragment.getArSceneView().getScene());
@@ -150,8 +166,55 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    void initScene() {
+   public void initScene() {
+        try {
+            Frame frame = mSession.update();
+            if (frame.getCamera().getTrackingState() == TrackingState.TRACKING) { // is tracking now
+                // place anchor
+                if (isFirstStart) {
+                    float[] rotation = { 0, 0, 0, 1};
+                    Point size = new Point();
+                    display.getSize(size);
+                    MotionEvent tap = MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN, size.x, size.y, 0);
+//                    Anchor anchor = arFragment.getArSceneView().getSession().createAnchor(new Pose(pos, rotation));
+                    if (frame.hitTest(tap).size() > 0) {
+                        makeMessage("tracking finish");
+                        Anchor anchor = getClosestHit(frame.hitTest(tap)).createAnchor();
+                        AnchorNode anchorNode = new AnchorNode(anchor);
+                        anchorNode.setParent(arFragment.getArSceneView().getScene());
 
+                        Node node = new Node();
+                        node.setParent(anchorNode);
+                        node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
+                        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
+//            node.setLocalPosition(new Vector3(0f,0f,-1f));
+                        node.setRenderable(imageRenderable);
+
+                        isFirstStart = false;
+                    } else {
+                        // still not track finished
+                        return;
+                    }
+                }
+            }
+        } catch (CameraNotAvailableException e) { return; }
+    }
+
+    private HitResult getClosestHit(List<HitResult> hitResults) {
+
+        for (HitResult hitResult : hitResults) {
+
+            if (hitResult.getTrackable() instanceof Plane) {
+
+                return hitResult;
+            }
+        }
+
+        return  hitResults.get(0);
+    }
+
+    void makeMessage(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
     }
 
     void initArSession() throws UnavailableApkTooOldException, UnavailableArcoreNotInstalledException, UnavailableSdkTooOldException, UnavailableDeviceNotCompatibleException {
