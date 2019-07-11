@@ -85,6 +85,7 @@ public class MainActivity extends AppCompatActivity {
                 initScene();
             }
         });
+
         ModelRenderable.builder()
                 .setSource(this, R.raw.andy)
                 .build()
@@ -144,7 +145,6 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 mSession.resume();
             }
-//            initScene();
         } catch (UnavailableUserDeclinedInstallationException e) {
             // Display an appropriate message to the user and return gracefully.
             Toast.makeText(this, "TODO: handle exception " + e, Toast.LENGTH_LONG)
@@ -169,31 +169,37 @@ public class MainActivity extends AppCompatActivity {
    public void initScene() {
         try {
             Frame frame = mSession.update();
-            if (frame.getCamera().getTrackingState() == TrackingState.TRACKING) { // is tracking now
-                // place anchor
-                if (isFirstStart) {
-                    float[] rotation = { 0, 0, 0, 1};
-                    Point size = new Point();
-                    display.getSize(size);
-                    MotionEvent tap = MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN, size.x, size.y, 0);
-//                    Anchor anchor = arFragment.getArSceneView().getSession().createAnchor(new Pose(pos, rotation));
-                    if (frame.hitTest(tap).size() > 0) {
-                        makeMessage("tracking finish");
-                        Anchor anchor = getClosestHit(frame.hitTest(tap)).createAnchor();
-                        AnchorNode anchorNode = new AnchorNode(anchor);
-                        anchorNode.setParent(arFragment.getArSceneView().getScene());
+            for (Plane plane : frame.getUpdatedTrackables(Plane.class)) {
+                if (plane.getTrackingState() == TrackingState.TRACKING) {
+                    // detect has finished
+                    if (frame.getCamera().getTrackingState() == TrackingState.TRACKING) { // is tracking now
+                        // place anchor
+                        if (isFirstStart) {
+                            float[] rotation = { 0, 0, 0, 1};
+                            Point size = new Point();
+                            display.getSize(size);
+                            MotionEvent tap = MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(), MotionEvent.ACTION_DOWN, size.x/2 , size.y/2 , 0);
+                            if (frame.hitTest(tap).size() > 0) {
+                                makeMessage("tracking finish");
+                                HitResult closeHitResult = getClosestHit(frame.hitTest(tap));
+                                makeMessage(Float.toString(closeHitResult.getDistance()));
+                                Anchor anchor = closeHitResult.createAnchor();
+                                AnchorNode anchorNode = new AnchorNode(anchor);
+                                anchorNode.setParent(arFragment.getArSceneView().getScene());
 
-                        Node node = new Node();
-                        node.setParent(anchorNode);
-                        node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
-                        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
+                                Node node = new Node();
+                                node.setParent(anchorNode);
+                                node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
+                                node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
-                        node.setRenderable(imageRenderable);
+                                node.setRenderable(imageRenderable);
 
-                        isFirstStart = false;
-                    } else {
-                        // still not track finished
-                        return;
+                                isFirstStart = false;
+                            } else {
+                                // still not track finished
+                                return;
+                            }
+                        }
                     }
                 }
             }
