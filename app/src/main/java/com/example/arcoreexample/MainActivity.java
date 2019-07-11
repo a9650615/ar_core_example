@@ -1,23 +1,49 @@
 package com.example.arcoreexample;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
+import android.opengl.GLES20;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
+import com.google.ar.core.Camera;
+import com.google.ar.core.Config;
+import com.google.ar.core.Frame;
+import com.google.ar.core.HitResult;
+import com.google.ar.core.Plane;
+import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
+import com.google.ar.core.SharedCamera;
+import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
 import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
 import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException;
 import com.google.ar.core.exceptions.UnavailableSdkTooOldException;
 import com.google.ar.core.exceptions.UnavailableUserDeclinedInstallationException;
+import com.google.ar.sceneform.AnchorNode;
+import com.google.ar.sceneform.Node;
+import com.google.ar.sceneform.math.Quaternion;
+import com.google.ar.sceneform.math.Vector3;
+import com.google.ar.sceneform.rendering.ModelRenderable;
+import com.google.ar.sceneform.rendering.ViewRenderable;
+import com.google.ar.sceneform.ux.ArFragment;
+import com.google.ar.sceneform.ux.TransformableNode;
+
+import java.util.EnumSet;
+
+import javax.microedition.khronos.opengles.GL10;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -26,6 +52,10 @@ public class MainActivity extends AppCompatActivity {
     protected boolean mUserRequestedInstall = true;
     private static final double MIN_OPENGL_VERSION = 3.0;
     private Session mSession;
+    private ArFragment arFragment;
+
+    private ViewRenderable imageRenderable;
+    private ModelRenderable andyRenderable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,8 +63,47 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         checkArCoreIsEnabled();
         if( !checkIsSupportedDeviceOrFinish(this) ) {
-
+            return;
         }
+        arFragment = (ArFragment) getSupportFragmentManager().findFragmentById(R.id.ar_fragment);
+//        arFragment.getArSceneView().getPlaneRenderer().setEnabled(false);
+
+        ModelRenderable.builder()
+                .setSource(this, R.raw.andy)
+                .build()
+                .thenAccept(renderable -> andyRenderable = renderable)
+                .exceptionally(
+                        throwable -> {
+                            Toast toast =
+                                    Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
+                            toast.setGravity(Gravity.CENTER, 0, 0);
+                            toast.show();
+                            return null;
+                        });
+
+        ViewRenderable.builder()
+                .setView(arFragment.getContext(), R.layout.test_render_view)
+                .build()
+                .thenAccept(renderable -> {
+                    imageRenderable = renderable;
+//                    ImageView imgView = (ImageView)renderable.getView();
+                });
+
+        arFragment.setOnTapArPlaneListener((HitResult hitResult, Plane plane, MotionEvent motionEvent) -> {
+            float[] pos = { 0,0,-1 };
+            float[] rotation = {0,0,0,1};
+//            Anchor anchor = arFragment.getArSceneView().getSession().createAnchor(new Pose(pos, rotation));
+            Anchor anchor = hitResult.createAnchor();
+            AnchorNode anchorNode = new AnchorNode(anchor);
+            anchorNode.setParent(arFragment.getArSceneView().getScene());
+
+            Node node = new Node();
+            node.setParent(anchorNode);
+            node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
+            node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
+//            node.setLocalPosition(new Vector3(0f,0f,-1f));
+            node.setRenderable(imageRenderable);
+        });
     }
 
     @Override
@@ -47,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
                 switch (ArCoreApk.getInstance().requestInstall(this, mUserRequestedInstall)) {
                     case INSTALLED:
                         // Success, create the AR session.
-                        mSession = new Session(this);
+                        initArSession();
                         break;
                     case INSTALL_REQUESTED:
                         // Ensures next invocation of requestInstall() will either return
@@ -56,7 +125,10 @@ public class MainActivity extends AppCompatActivity {
                         mUserRequestedInstall = false;
                         return;
                 }
+            } else {
+                mSession.resume();
             }
+//            initScene();
         } catch (UnavailableUserDeclinedInstallationException e) {
             // Display an appropriate message to the user and return gracefully.
             Toast.makeText(this, "TODO: handle exception " + e, Toast.LENGTH_LONG)
@@ -67,6 +139,28 @@ public class MainActivity extends AppCompatActivity {
         catch (UnavailableApkTooOldException e) { return; }
         catch (UnavailableArcoreNotInstalledException e) { return; }
         catch (UnavailableSdkTooOldException e) { return; }
+        catch (CameraNotAvailableException e) { return; }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (mSession != null) {
+            mSession.pause();
+        }
+    }
+
+    void initScene() {
+
+    }
+
+    void initArSession() throws UnavailableApkTooOldException, UnavailableArcoreNotInstalledException, UnavailableSdkTooOldException, UnavailableDeviceNotCompatibleException {
+        mSession = new Session(this, EnumSet.of(Session.Feature.SHARED_CAMERA));
+        Config config = new Config(mSession);
+        config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
+        config.setFocusMode(Config.FocusMode.AUTO);
+        mSession.configure(config);
+        arFragment.getArSceneView().setupSession(mSession);
     }
 
 
