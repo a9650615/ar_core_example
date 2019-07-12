@@ -128,16 +128,12 @@ public class MainActivity extends AppCompatActivity {
         arFragment.setOnTapArPlaneListener((HitResult hitResult, Plane plane, MotionEvent motionEvent) -> {
             float[] pos = { 0,0,-1 };
             float[] rotation = {0,0,0,1};
-            Anchor anchor = hitResult.createAnchor();
-            AnchorNode anchorNode = new AnchorNode(anchor);
-            anchorNode.setParent(arFragment.getArSceneView().getScene());
 
-            Node node = new Node();
-            node.setParent(anchorNode);
-            node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
-            node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
-//            node.setLocalPosition(new Vector3(0f,0f,-1f));
-            node.setRenderable(imageRenderable);
+            setNewAnchor(hitResult.createAnchor());
+            if (currentMode == HostResolveMode.HOSTING) {
+                cloudAnchorManager.clearListeners();
+                cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);
+            }
         });
 
         currentMode = HostResolveMode.NONE;
@@ -303,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onRoomCodeEntered(Long roomCode) {
-//        currentMode = HostResolveMode.RESOLVING;
+        currentMode = HostResolveMode.RESOLVING;
 //        hostButton.setEnabled(false);
 //        resolveButton.setText(R.string.cancel);
 //        roomCodeText.setText(String.valueOf(roomCode));
@@ -395,10 +391,9 @@ public class MainActivity extends AppCompatActivity {
 //                        this, getString(R.string.snackbar_host_error, cloudState));
                 return;
             }
-            Preconditions.checkState(
-                    cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
+//            Preconditions.checkState(
+//                    cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
             cloudAnchorId = anchor.getCloudAnchorId();
-//            setNewAnchor(anchor);
             checkAndMaybeShare();
         }
 

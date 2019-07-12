@@ -42,7 +42,7 @@ class FirebaseManager {
     private static final String KEY_DISPLAY_NAME = "display_name";
     private static final String KEY_ANCHOR_ID = "hosted_anchor_id";
     private static final String KEY_TIMESTAMP = "updated_at_timestamp";
-    private static final String DISPLAY_NAME_VALUE = "Android EAP Sample";
+    private static final String DISPLAY_NAME_VALUE = "Ar Core Sample";
 
     private final FirebaseApp app;
     private final DatabaseReference hotspotListRef;
