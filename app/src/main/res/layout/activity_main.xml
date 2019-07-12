@@ -6,9 +6,36 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <fragment android:name="com.google.ar.sceneform.ux.ArFragment"
+    <fragment
         android:id="@+id/ar_fragment"
+        android:name="com.google.ar.sceneform.ux.ArFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <Button
+        android:id="@+id/host_button"
+        style="@android:style/Widget.Material.Light.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginBottom="20dp"
+        android:elevation="1dp"
+        android:text="@string/host_room"
+        android:onClick="onCreateRoom"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/host_button2"
+        style="@android:style/Widget.Material.Light.Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="20dp"
+        android:elevation="1dp"
+        android:onClick="onJoinRoom"
+        android:text="@string/join_room"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/host_button" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">ARcoreExample</string>
+    <string name="host_room">Host Room</string>
+    <string name="join_room">Join Room</string>
+    <string name="snackbar_room_code_available">snackbar_room_code_available</string>
+    <string name="snackbar_firebase_error">snackbar_firebase_error</string>
+    <string name="snackbar_host_error">host error</string>
+    <string name="snackbar_cloud_id_shared">snackbar_cloud_id_shared</string>
+    <string name="snackbar_on_resolve">snackbar_on_resolve</string>
+    <string name="snackbar_resolve_error">snackbar_resolve_error</string>
+    <string name="snackbar_resolve_success">snackbar_resolve_success</string>
+    <string name="resolve_dialog_text_hint">resolve_dialog_text_hint</string>
+    <string name="resolve_dialog_title">Join room id</string>
+    <string name="resolve_dialog_ok">Ok</string>
+    <string name="cancel">Cancel</string>
 </resources>

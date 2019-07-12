@@ -16,6 +16,7 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -46,6 +47,8 @@ import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.ar.sceneform.ux.TransformableNode;
+import com.google.common.base.Preconditions;
+import com.google.firebase.database.DatabaseError;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -53,6 +56,12 @@ import java.util.List;
 import javax.microedition.khronos.opengles.GL10;
 
 public class MainActivity extends AppCompatActivity {
+
+    private enum HostResolveMode {
+        NONE,
+        HOSTING,
+        RESOLVING,
+    }
 
     private static final String TAG = MainActivity.class.getSimpleName();
     protected boolean ar_core_enabled = false;
@@ -62,10 +71,18 @@ public class MainActivity extends AppCompatActivity {
     private Session mSession;
     private ArFragment arFragment;
 
+    // cloud anchor
+    private final CloudAnchorManager cloudAnchorManager = new CloudAnchorManager();
+    private FirebaseManager firebaseManager;
+    private final SnackbarHelper snackbarHelper = new SnackbarHelper();
+    private RoomCodeAndCloudAnchorIdListener hostListener;
+    private Anchor lastAnchor;
+    private HostResolveMode currentMode;
+
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
 
-    private  Display display;
+    private Display display;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
         if( !checkIsSupportedDeviceOrFinish(this) ) {
             return;
         }
+        firebaseManager = new FirebaseManager(this);
         arFragment = (ArFragment) getSupportFragmentManager().findFragmentById(R.id.ar_fragment);
 //        arFragment.getArSceneView().getPlaneRenderer().setEnabled(false);
 //        arFragment.getArSceneView().getScene().setOnUpdateListener(this::onUpdate);
@@ -121,6 +139,8 @@ public class MainActivity extends AppCompatActivity {
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
             node.setRenderable(imageRenderable);
         });
+
+        currentMode = HostResolveMode.NONE;
     }
 
     @Override
@@ -169,6 +189,7 @@ public class MainActivity extends AppCompatActivity {
    public void initScene() {
         try {
             Frame frame = mSession.update();
+            cloudAnchorManager.onUpdate();
             for (Plane plane : frame.getUpdatedTrackables(Plane.class)) {
                 if (plane.getTrackingState() == TrackingState.TRACKING) {
                     // detect has finished
@@ -184,16 +205,8 @@ public class MainActivity extends AppCompatActivity {
                                 HitResult closeHitResult = getClosestHit(frame.hitTest(tap));
                                 makeMessage(Float.toString(closeHitResult.getDistance()));
                                 Anchor anchor = closeHitResult.createAnchor();
-                                AnchorNode anchorNode = new AnchorNode(anchor);
-                                anchorNode.setParent(arFragment.getArSceneView().getScene());
 
-                                Node node = new Node();
-                                node.setParent(anchorNode);
-                                node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
-                                node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
-//            node.setLocalPosition(new Vector3(0f,0f,-1f));
-                                node.setRenderable(imageRenderable);
-
+                                setNewAnchor(anchor);
                                 isFirstStart = false;
                             } else {
                                 // still not track finished
@@ -228,8 +241,10 @@ public class MainActivity extends AppCompatActivity {
         Config config = new Config(mSession);
         config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
         config.setFocusMode(Config.FocusMode.AUTO);
+        config.setCloudAnchorMode(Config.CloudAnchorMode.ENABLED);
         mSession.configure(config);
         arFragment.getArSceneView().setupSession(mSession);
+        cloudAnchorManager.setSession(mSession);
     }
 
 
@@ -270,5 +285,130 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
         return true;
+    }
+
+    private void setNewAnchor(Anchor newAnchor) {
+        if (lastAnchor != null) {
+            lastAnchor.detach();
+        }
+        lastAnchor = newAnchor;
+        AnchorNode anchorNode = new AnchorNode(lastAnchor);
+        anchorNode.setParent(arFragment.getArSceneView().getScene());
+        Node node = new Node();
+        node.setParent(anchorNode);
+        node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
+        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
+//            node.setLocalPosition(new Vector3(0f,0f,-1f));
+        node.setRenderable(imageRenderable);
+    }
+
+    private void onRoomCodeEntered(Long roomCode) {
+//        currentMode = HostResolveMode.RESOLVING;
+//        hostButton.setEnabled(false);
+//        resolveButton.setText(R.string.cancel);
+//        roomCodeText.setText(String.valueOf(roomCode));
+        snackbarHelper.showMessageWithDismiss(this, getString(R.string.snackbar_on_resolve));
+
+        // Register a new listener for the given room.
+        firebaseManager.registerNewListenerForRoom(
+                roomCode,
+                (cloudAnchorId) -> {
+                    // When the cloud anchor ID is available from Firebase.
+                    cloudAnchorManager.resolveCloudAnchor(
+                            cloudAnchorId,
+                            (anchor) -> {
+                                // When the anchor has been resolved, or had a final error state.
+                                Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
+                                if (cloudState.isError()) {
+                                    Log.w(
+                                            TAG,
+                                            "The anchor in room "
+                                                    + roomCode
+                                                    + " could not be resolved. The error state was "
+                                                    + cloudState);
+                                    snackbarHelper.showMessageWithDismiss(
+                                            MainActivity.this,
+                                            getString(R.string.snackbar_resolve_error) + cloudState);
+                                    return;
+                                }
+                                snackbarHelper.showMessageWithDismiss(
+                                        MainActivity.this, getString(R.string.snackbar_resolve_success));
+                                setNewAnchor(anchor);
+                            });
+                });
+    }
+
+    public void onCreateRoom(View view) {
+        if (hostListener != null) {
+            return;
+        }
+        // host to cloud
+        hostListener = new RoomCodeAndCloudAnchorIdListener();
+        firebaseManager.getNewRoomCode(hostListener);
+        cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);// host to online
+    }
+
+    public void onJoinRoom(View view) {
+        ResolveDialogFragment dialogFragment = new ResolveDialogFragment();
+        dialogFragment.setOkListener(this::onRoomCodeEntered);
+        dialogFragment.show(getSupportFragmentManager(), "ResolveDialog");
+    }
+
+
+    private final class RoomCodeAndCloudAnchorIdListener
+            implements CloudAnchorManager.CloudAnchorListener, FirebaseManager.RoomCodeListener {
+
+        private Long roomCode;
+        private String cloudAnchorId;
+
+        @Override
+        public void onNewRoomCode(Long newRoomCode) {
+            Preconditions.checkState(roomCode == null, "The room code cannot have been set before.");
+            roomCode = newRoomCode;
+//            roomCodeText.setText(String.valueOf(roomCode));
+            snackbarHelper.showMessageWithDismiss(
+                    MainActivity.this, getString(R.string.snackbar_room_code_available));
+            checkAndMaybeShare();
+            currentMode = HostResolveMode.HOSTING;
+//            synchronized (singleTapLock) {
+//                // Change currentMode to HOSTING after receiving the room code (not when the 'Host' button
+//                // is tapped), to prevent an anchor being placed before we know the room code and able to
+//                // share the anchor ID.
+//                currentMode = HostResolveMode.HOSTING;
+//            }
+        }
+
+        @Override
+        public void onError(DatabaseError error) {
+            Log.w(TAG, "A Firebase database error happened.", error.toException());
+            snackbarHelper.showError(
+                    MainActivity.this, getString(R.string.snackbar_firebase_error));
+        }
+
+        @Override
+        public void onCloudTaskComplete(Anchor anchor) {
+            Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
+            if (cloudState.isError()) {
+                Log.e(TAG, "Error hosting a cloud anchor, state " + cloudState);
+                makeMessage("Error hosting a cloud anchor, state " + cloudState);
+//                snackbarHelper.showMessageWithDismiss(
+//                        this, getString(R.string.snackbar_host_error, cloudState));
+                return;
+            }
+            Preconditions.checkState(
+                    cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
+            cloudAnchorId = anchor.getCloudAnchorId();
+//            setNewAnchor(anchor);
+            checkAndMaybeShare();
+        }
+
+        private void checkAndMaybeShare() {
+            if (roomCode == null || cloudAnchorId == null) {
+                return;
+            }
+            firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId);
+            snackbarHelper.showMessageWithDismiss(
+                    MainActivity.this, getString(R.string.snackbar_cloud_id_shared));
+        }
     }
 }
