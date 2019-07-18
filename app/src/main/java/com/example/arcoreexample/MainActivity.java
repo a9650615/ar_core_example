@@ -297,6 +297,7 @@ public class MainActivity extends AppCompatActivity {
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
         node.setRenderable(imageRenderable);
 //        tmpAnchor.detach();
+        newAnchor.detach();
     }
 
     private void onRoomCodeEntered(Long roomCode) {
