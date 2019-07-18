@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 
 import com.google.ar.core.Anchor;
 import com.google.ar.core.Anchor.CloudAnchorState;
+import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
@@ -24,7 +25,7 @@ class CloudAnchorManager {
     interface CloudAnchorListener {
 
         /** This method is invoked when the results of a Cloud Anchor operation are available. */
-        void onCloudTaskComplete(Anchor anchor, String cameraAnchorId);
+        void onCloudTaskComplete(String anchor, Anchor cameraAnchorId);
 
     }
 
@@ -52,9 +53,14 @@ class CloudAnchorManager {
      */
     synchronized void hostCloudAnchor(Anchor anchor, CloudAnchorListener listener) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
-        Anchor newAnchor = session.hostCloudAnchor(anchor);
+//        Anchor newAnchor = session.hostCloudAnchor(anchor);
         cameraCloudAnchor = session.hostCloudAnchor(cameraAnchor);
-        pendingAnchors.put(newAnchor, listener);
+        pendingAnchors.put(anchor, listener);
+    }
+
+    synchronized void putCloudAnchor(Anchor anchor, CloudAnchorListener listener) {
+        Preconditions.checkNotNull(session, "The session cannot be null.");
+        pendingAnchors.put(anchor, listener);
     }
 
     /**
@@ -63,8 +69,16 @@ class CloudAnchorManager {
      */
     synchronized void resolveCloudAnchor(String anchorId, CloudAnchorListener listener) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
-        Anchor newAnchor = session.resolveCloudAnchor(anchorId);
-        pendingAnchors.put(newAnchor, listener);
+        cameraCloudAnchor = session.resolveCloudAnchor(anchorId);
+//        Anchor newAnchor = session.resolveCloudAnchor(anchorId);
+        pendingAnchors.put(cameraCloudAnchor, listener);
+    }
+
+    synchronized String generateDistanceOfAnchorToCamera(Pose startPose, Pose endPose) {
+        float dx = startPose.tx() - endPose.tx();
+        float dy = startPose.ty() - endPose.ty();
+        float dz = startPose.tz() - endPose.tz();
+        return dx+","+dy+","+dz;
     }
 
     /** Should be called after a {@link Session#update()} call. */
@@ -74,9 +88,9 @@ class CloudAnchorManager {
         while (iter.hasNext() && null != cameraCloudAnchor) {
             Map.Entry<Anchor, CloudAnchorListener> entry = iter.next();
             Anchor anchor = entry.getKey();
-            if (isReturnableState(anchor.getCloudAnchorState()) && isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
+            if (isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
                 CloudAnchorListener listener = entry.getValue();
-                listener.onCloudTaskComplete(anchor, cameraCloudAnchor.getCloudAnchorId());
+                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose(), cameraCloudAnchor.getPose()), cameraCloudAnchor);
                 iter.remove();
             }
         }

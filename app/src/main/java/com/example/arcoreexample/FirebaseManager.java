@@ -31,7 +31,7 @@ class FirebaseManager {
     interface CloudAnchorIdListener {
 
         /** Invoked when a new cloud anchor ID is available. */
-        void onNewCloudAnchorId(String cloudAnchorId);
+        void onNewCloudAnchorId(String cameraId, String cloudAnchorId);
     }
 
     // Names of the nodes used in the Firebase Database
@@ -125,11 +125,13 @@ class FirebaseManager {
                 new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
+                        Object camObj = dataSnapshot.child(CAMERA_ANCHOR_ID).getValue();
                         Object valObj = dataSnapshot.child(KEY_ANCHOR_ID).getValue();
                         if (valObj != null) {
+                            String camId = String.valueOf(camObj);
                             String anchorId = String.valueOf(valObj);
-                            if (!anchorId.isEmpty()) {
-                                listener.onNewCloudAnchorId(anchorId);
+                            if (!camId.isEmpty() && !anchorId.isEmpty()) {
+                                listener.onNewCloudAnchorId(camId, anchorId);
                             }
                         }
                     }

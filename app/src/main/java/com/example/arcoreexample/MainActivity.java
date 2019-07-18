@@ -23,6 +23,7 @@ import com.google.ar.core.Config;
 import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
+import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.ar.core.TrackingState;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
@@ -43,6 +44,7 @@ import com.google.ar.sceneform.ux.ArFragment;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
 
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -122,9 +124,11 @@ public class MainActivity extends AppCompatActivity {
             float[] rotation = {0,0,0,1};
 
             setNewAnchor(hitResult.createAnchor());
-            if (currentMode == HostResolveMode.HOSTING) {
+            if (currentMode == HostResolveMode.HOSTING || currentMode == HostResolveMode.RESOLVING) {
+                currentMode = HostResolveMode.HOSTING;
                 cloudAnchorManager.clearListeners();
-                cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);
+                cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener);
+//                cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);
             }
         });
 
@@ -198,7 +202,8 @@ public class MainActivity extends AppCompatActivity {
                                 isFirstStart = false;
 
                                 // init camera anchor
-                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
+//                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
+                                firstCameraAnchor = anchor;
                             } else {
                                 // still not track finished
                                 return;
@@ -295,6 +300,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void onRoomCodeEntered(Long roomCode) {
         currentMode = HostResolveMode.RESOLVING;
+        hostListener = new RoomCodeAndCloudAnchorIdListener();
+        hostListener.roomCode = roomCode;
 //        hostButton.setEnabled(false);
 //        resolveButton.setText(R.string.cancel);
 //        roomCodeText.setText(String.valueOf(roomCode));
@@ -303,13 +310,14 @@ public class MainActivity extends AppCompatActivity {
         // Register a new listener for the given room.
         firebaseManager.registerNewListenerForRoom(
                 roomCode,
-                (cloudAnchorId) -> {
+                (camId, cloudAnchorId) -> {
+                    makeMessage(camId);
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
-                            cloudAnchorId,
-                            (anchor, cameraId) -> {
+                            camId,
+                            (anchor, camera) -> {
                                 // When the anchor has been resolved, or had a final error state.
-                                Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
+                                Anchor.CloudAnchorState cloudState = camera.getCloudAnchorState();
                                 if (cloudState.isError()) {
                                     Log.w(
                                             TAG,
@@ -324,7 +332,9 @@ public class MainActivity extends AppCompatActivity {
                                 }
                                 snackbarHelper.showMessageWithDismiss(
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
-                                setNewAnchor(anchor);
+                                String[] posStr = cloudAnchorId.split(",");
+                                float[] pos = {Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2])};
+                                setNewAnchor(mSession.createAnchor(camera.getPose().compose(Pose.makeTranslation(pos)))); //
                             });
                 });
     }
@@ -351,7 +361,7 @@ public class MainActivity extends AppCompatActivity {
             implements CloudAnchorManager.CloudAnchorListener, FirebaseManager.RoomCodeListener {
 
         private Long roomCode;
-        private String cloudAnchorId;
+        private String anchorPos;
         private String cameraAnchorId;
 
         @Override
@@ -379,8 +389,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onCloudTaskComplete(Anchor anchor, String cameraAnchor) {
-            Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
+        public void onCloudTaskComplete(String pos, Anchor cameraAnchor) {
+            Anchor.CloudAnchorState cloudState = cameraAnchor.getCloudAnchorState();
             if (cloudState.isError()) {
                 Log.e(TAG, "Error hosting a cloud anchor, state " + cloudState);
                 makeMessage("Error hosting a cloud anchor, state " + cloudState);
@@ -390,17 +400,18 @@ public class MainActivity extends AppCompatActivity {
             }
 //            Preconditions.checkState(
 //                    cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
-            cloudAnchorId = anchor.getCloudAnchorId();
-            cameraAnchorId = cameraAnchor;
+//            cloudAnchorId = anchor.getCloudAnchorId();
+            anchorPos = pos;
+            cameraAnchorId = cameraAnchor.getCloudAnchorId();
             checkAndMaybeShare();
         }
 
 
         private void checkAndMaybeShare() {
-            if (roomCode == null || cloudAnchorId == null || cameraAnchorId == null) {
+            if (roomCode == null || anchorPos == null || cameraAnchorId == null) {
                 return;
             }
-            firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId, cameraAnchorId);
+            firebaseManager.storeAnchorIdInRoom(roomCode, anchorPos, cameraAnchorId);
             snackbarHelper.showMessageWithDismiss(
                     MainActivity.this, getString(R.string.snackbar_cloud_id_shared));
         }
