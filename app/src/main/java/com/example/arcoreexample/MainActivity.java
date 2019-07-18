@@ -333,8 +333,16 @@ public class MainActivity extends AppCompatActivity {
                                 snackbarHelper.showMessageWithDismiss(
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
                                 String[] posStr = cloudAnchorId.split(",");
-                                float[] pos = {Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2])};
-                                setNewAnchor(mSession.createAnchor(camera.getPose().compose(Pose.makeTranslation(pos)))); //
+                                float[] rotate = {-Float.parseFloat(posStr[3]), -Float.parseFloat(posStr[4]), -Float.parseFloat(posStr[5]), -Float.parseFloat(posStr[6])};
+                                setNewAnchor(
+                                        mSession.createAnchor(
+                                                camera.getPose().extractTranslation().compose(
+                                                        Pose
+                                                                .makeRotation(rotate)
+                                                                .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
+                                                )
+                                        )
+                                ); //
                             });
                 });
     }

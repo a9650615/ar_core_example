@@ -78,7 +78,13 @@ class CloudAnchorManager {
         float dx = startPose.tx() - endPose.tx();
         float dy = startPose.ty() - endPose.ty();
         float dz = startPose.tz() - endPose.tz();
-        return dx+","+dy+","+dz;
+
+        float qx = startPose.qx() - endPose.qx();
+        float qy = startPose.qy() - endPose.qy();
+        float qz = startPose.qz() - endPose.qz();
+        float qw = startPose.qw() - endPose.qw();
+
+        return dx+","+dy+","+dz+","+startPose.qx()+","+startPose.qy()+","+startPose.qz()+","+startPose.qw();
     }
 
     /** Should be called after a {@link Session#update()} call. */
@@ -90,7 +96,7 @@ class CloudAnchorManager {
             Anchor anchor = entry.getKey();
             if (isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
                 CloudAnchorListener listener = entry.getValue();
-                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose(), cameraCloudAnchor.getPose()), cameraCloudAnchor);
+                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor);
                 iter.remove();
             }
         }
