@@ -202,8 +202,8 @@ public class MainActivity extends AppCompatActivity {
                                 isFirstStart = false;
 
                                 // init camera anchor
-//                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
-                                firstCameraAnchor = anchor;
+                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
+//                                firstCameraAnchor = anchor;
                             } else {
                                 // still not track finished
                                 return;
@@ -287,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
         if (lastAnchor != null) {
             lastAnchor.detach();
         }
-        lastAnchor = newAnchor;
+        lastAnchor = mSession.createAnchor(newAnchor.getPose().extractTranslation());
         AnchorNode anchorNode = new AnchorNode(lastAnchor);
         anchorNode.setParent(arFragment.getArSceneView().getScene());
         Node node = new Node();
@@ -296,6 +296,7 @@ public class MainActivity extends AppCompatActivity {
         node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
         node.setRenderable(imageRenderable);
+//        tmpAnchor.detach();
     }
 
     private void onRoomCodeEntered(Long roomCode) {
@@ -338,7 +339,7 @@ public class MainActivity extends AppCompatActivity {
                                         mSession.createAnchor(
                                                 camera.getPose().extractTranslation().compose(
                                                         Pose
-                                                                .makeRotation(rotate)
+//                                                                .makeRotation(rotate)
                                                                 .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
                                                 )
                                         )

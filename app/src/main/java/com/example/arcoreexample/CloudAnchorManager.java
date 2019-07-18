@@ -96,7 +96,7 @@ class CloudAnchorManager {
             Anchor anchor = entry.getKey();
             if (isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
                 CloudAnchorListener listener = entry.getValue();
-                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor);
+                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose().extractTranslation(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor);
                 iter.remove();
             }
         }
