@@ -1,13 +1,11 @@
 package com.example.arcoreexample;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.graphics.Point;
-import android.opengl.GLES20;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -17,19 +15,15 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
-import com.google.ar.core.Camera;
 import com.google.ar.core.Config;
 import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
 import com.google.ar.core.Plane;
-import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
-import com.google.ar.core.SharedCamera;
 import com.google.ar.core.TrackingState;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
@@ -46,14 +40,11 @@ import com.google.ar.sceneform.math.Vector3;
 import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
-import com.google.ar.sceneform.ux.TransformableNode;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
 
 import java.util.EnumSet;
 import java.util.List;
-
-import javax.microedition.khronos.opengles.GL10;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -77,6 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private final SnackbarHelper snackbarHelper = new SnackbarHelper();
     private RoomCodeAndCloudAnchorIdListener hostListener;
     private Anchor lastAnchor;
+    private Anchor firstCameraAnchor;
     private HostResolveMode currentMode;
 
     private ViewRenderable imageRenderable;
@@ -204,6 +196,9 @@ public class MainActivity extends AppCompatActivity {
 
                                 setNewAnchor(anchor);
                                 isFirstStart = false;
+
+                                // init camera anchor
+                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
                             } else {
                                 // still not track finished
                                 return;
@@ -312,7 +307,7 @@ public class MainActivity extends AppCompatActivity {
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
                             cloudAnchorId,
-                            (anchor) -> {
+                            (anchor, cameraId) -> {
                                 // When the anchor has been resolved, or had a final error state.
                                 Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
                                 if (cloudState.isError()) {
@@ -341,6 +336,7 @@ public class MainActivity extends AppCompatActivity {
         // host to cloud
         hostListener = new RoomCodeAndCloudAnchorIdListener();
         firebaseManager.getNewRoomCode(hostListener);
+        cloudAnchorManager.setCameraAnchor(firstCameraAnchor);
         cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);// host to online
     }
 
@@ -356,6 +352,7 @@ public class MainActivity extends AppCompatActivity {
 
         private Long roomCode;
         private String cloudAnchorId;
+        private String cameraAnchorId;
 
         @Override
         public void onNewRoomCode(Long newRoomCode) {
@@ -382,7 +379,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onCloudTaskComplete(Anchor anchor) {
+        public void onCloudTaskComplete(Anchor anchor, String cameraAnchor) {
             Anchor.CloudAnchorState cloudState = anchor.getCloudAnchorState();
             if (cloudState.isError()) {
                 Log.e(TAG, "Error hosting a cloud anchor, state " + cloudState);
@@ -394,14 +391,16 @@ public class MainActivity extends AppCompatActivity {
 //            Preconditions.checkState(
 //                    cloudAnchorId == null, "The cloud anchor ID cannot have been set before.");
             cloudAnchorId = anchor.getCloudAnchorId();
+            cameraAnchorId = cameraAnchor;
             checkAndMaybeShare();
         }
 
+
         private void checkAndMaybeShare() {
-            if (roomCode == null || cloudAnchorId == null) {
+            if (roomCode == null || cloudAnchorId == null || cameraAnchorId == null) {
                 return;
             }
-            firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId);
+            firebaseManager.storeAnchorIdInRoom(roomCode, cloudAnchorId, cameraAnchorId);
             snackbarHelper.showMessageWithDismiss(
                     MainActivity.this, getString(R.string.snackbar_cloud_id_shared));
         }

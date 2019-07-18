@@ -24,12 +24,19 @@ class CloudAnchorManager {
     interface CloudAnchorListener {
 
         /** This method is invoked when the results of a Cloud Anchor operation are available. */
-        void onCloudTaskComplete(Anchor anchor);
+        void onCloudTaskComplete(Anchor anchor, String cameraAnchorId);
+
     }
 
     @Nullable
     private Session session = null;
     private final HashMap<Anchor, CloudAnchorListener> pendingAnchors = new HashMap<>();
+    private Anchor cameraAnchor;
+    private Anchor cameraCloudAnchor;
+
+    synchronized void setCameraAnchor(Anchor newCameraAnchor) {
+        cameraAnchor = newCameraAnchor;
+    }
 
     /**
      * This method is used to set the session, since it might not be available when this object is
@@ -46,6 +53,7 @@ class CloudAnchorManager {
     synchronized void hostCloudAnchor(Anchor anchor, CloudAnchorListener listener) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
         Anchor newAnchor = session.hostCloudAnchor(anchor);
+        cameraCloudAnchor = session.hostCloudAnchor(cameraAnchor);
         pendingAnchors.put(newAnchor, listener);
     }
 
@@ -63,12 +71,12 @@ class CloudAnchorManager {
     synchronized void onUpdate() {
         Preconditions.checkNotNull(session, "The session cannot be null.");
         Iterator<Map.Entry<Anchor, CloudAnchorListener>> iter = pendingAnchors.entrySet().iterator();
-        while (iter.hasNext()) {
+        while (iter.hasNext() && null != cameraCloudAnchor) {
             Map.Entry<Anchor, CloudAnchorListener> entry = iter.next();
             Anchor anchor = entry.getKey();
-            if (isReturnableState(anchor.getCloudAnchorState())) {
+            if (isReturnableState(anchor.getCloudAnchorState()) && isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
                 CloudAnchorListener listener = entry.getValue();
-                listener.onCloudTaskComplete(anchor);
+                listener.onCloudTaskComplete(anchor, cameraCloudAnchor.getCloudAnchorId());
                 iter.remove();
             }
         }

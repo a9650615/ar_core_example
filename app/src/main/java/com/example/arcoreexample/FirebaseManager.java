@@ -41,6 +41,7 @@ class FirebaseManager {
     // Some common keys and values used when writing to the Firebase Database.
     private static final String KEY_DISPLAY_NAME = "display_name";
     private static final String KEY_ANCHOR_ID = "hosted_anchor_id";
+    private static final String CAMERA_ANCHOR_ID = "camera_anchor_id";
     private static final String KEY_TIMESTAMP = "updated_at_timestamp";
     private static final String DISPLAY_NAME_VALUE = "Ar Core Sample";
 
@@ -103,11 +104,12 @@ class FirebaseManager {
     }
 
     /** Stores the given anchor ID in the given room code. */
-    void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId) {
+    void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId, String cameraAnchorId) {
         Preconditions.checkNotNull(app, "Firebase App was null");
         DatabaseReference roomRef = hotspotListRef.child(String.valueOf(roomCode));
         roomRef.child(KEY_DISPLAY_NAME).setValue(DISPLAY_NAME_VALUE);
         roomRef.child(KEY_ANCHOR_ID).setValue(cloudAnchorId);
+        roomRef.child(CAMERA_ANCHOR_ID).setValue(cameraAnchorId);
         roomRef.child(KEY_TIMESTAMP).setValue(System.currentTimeMillis());
     }
 
