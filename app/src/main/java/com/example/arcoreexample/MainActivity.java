@@ -372,7 +372,7 @@ public class MainActivity extends AppCompatActivity {
                                                                 .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
                                                 )
                                         )
-                                ); //
+                                );
                             });
                 });
     }
@@ -408,17 +408,25 @@ public class MainActivity extends AppCompatActivity {
         dialogFragment.show(getSupportFragmentManager(), "ResolveDialog");
     }
 
+    protected void updateDatabase() {
+        if (currentMode == HostResolveMode.HOSTING || currentMode == HostResolveMode.RESOLVING) {
+            currentMode = HostResolveMode.HOSTING;
+            cloudAnchorManager.clearListeners();
+            cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
+        }
+    }
+
     public void onScaleUp(View view) {
         scaleRatio += 0.3f;
-        cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
         setNewAnchor(lastAnchor);
+        updateDatabase();
     }
 
     public void onScaleDown(View view) {
         if (scaleRatio - 0.3f > 0) {
             scaleRatio -= 0.3f;
-            cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
             setNewAnchor(lastAnchor);
+            updateDatabase();
         }
     }
 
