@@ -10,6 +10,8 @@
     <string name="snackbar_resolve_error">snackbar_resolve_error</string>
     <string name="snackbar_resolve_success">snackbar_resolve_success</string>
     <string name="resolve_dialog_text_hint">resolve_dialog_text_hint</string>
+    <string name="no_room_alert">沒有此房間</string>
+    <string name="tracking_not_ready">定位尚未完成</string>
     <string name="resolve_dialog_title">Join room id</string>
     <string name="resolve_dialog_ok">Ok</string>
     <string name="cancel">Cancel</string>

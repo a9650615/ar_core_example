@@ -133,6 +133,8 @@ class FirebaseManager {
                             if (!camId.isEmpty() && !anchorId.isEmpty()) {
                                 listener.onNewCloudAnchorId(camId, anchorId);
                             }
+                        } else {
+                            listener.onNewCloudAnchorId(null, null);
                         }
                     }
 

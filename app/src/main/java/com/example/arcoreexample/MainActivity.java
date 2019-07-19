@@ -313,6 +313,10 @@ public class MainActivity extends AppCompatActivity {
         firebaseManager.registerNewListenerForRoom(
                 roomCode,
                 (camId, cloudAnchorId) -> {
+                    if (null == cloudAnchorId) {
+                        snackbarHelper.showMessageWithDismiss(this, getString(R.string.no_room_alert));
+                        return;
+                    }
                     makeMessage(camId);
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
@@ -361,6 +365,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onJoinRoom(View view) {
+        if (isFirstStart) {
+            snackbarHelper.showMessageWithDismiss(this, getString(R.string.tracking_not_ready));
+            return;
+        }
         ResolveDialogFragment dialogFragment = new ResolveDialogFragment();
         dialogFragment.setOkListener(this::onRoomCodeEntered);
         dialogFragment.show(getSupportFragmentManager(), "ResolveDialog");
