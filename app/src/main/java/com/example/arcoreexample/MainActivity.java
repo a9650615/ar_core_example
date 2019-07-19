@@ -197,9 +197,10 @@ public class MainActivity extends AppCompatActivity {
                                 HitResult closeHitResult = getClosestHit(frame.hitTest(tap));
                                 makeMessage(Float.toString(closeHitResult.getDistance()));
                                 Anchor anchor = closeHitResult.createAnchor();
-
+                                findViewById(R.id.func_btns).setVisibility(View.VISIBLE);
                                 setNewAnchor(anchor);
                                 isFirstStart = false;
+                                // show layout of functions buttons
 
                                 // init camera anchor
                                 firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
@@ -292,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
         anchorNode.setParent(arFragment.getArSceneView().getScene());
         Node node = new Node();
         node.setParent(anchorNode);
-        node.setLocalScale(new Vector3(0.3f, 0.3f, 1f));
+        node.setLocalScale(new Vector3(0.3f, 0.3f, 0.3f));
         node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
         node.setRenderable(imageRenderable);
