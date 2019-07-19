@@ -77,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
-    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1562612558584457/cXyQGUwmlA5/9Vh9L52uUvX/model.gltf";
+    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563399409719085/cJotNkUGLMw/3QAtpoL9oZ7/model.gltf";
+    private float scaleRatio = 0.3f;
 
     private Display display;
 
@@ -314,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
         anchorNode.setParent(arFragment.getArSceneView().getScene());
         Node node = new Node();
         node.setParent(anchorNode);
-        node.setLocalScale(new Vector3(0.3f, 0.3f, 0.3f));
+        node.setLocalScale(new Vector3(scaleRatio, scaleRatio, scaleRatio));
 //        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
         node.setRenderable(andyRenderable);
@@ -394,6 +395,18 @@ public class MainActivity extends AppCompatActivity {
         ResolveDialogFragment dialogFragment = new ResolveDialogFragment();
         dialogFragment.setOkListener(this::onRoomCodeEntered);
         dialogFragment.show(getSupportFragmentManager(), "ResolveDialog");
+    }
+
+    public void onScaleUp(View view) {
+        scaleRatio += 0.3f;
+        setNewAnchor(lastAnchor);
+    }
+
+    public void onScaleDown(View view) {
+        if (scaleRatio - 0.3f > 0) {
+            scaleRatio -= 0.3f;
+            setNewAnchor(lastAnchor);
+        }
     }
 
 

@@ -13,6 +13,8 @@
     <string name="no_room_alert">沒有此房間</string>
     <string name="tracking_not_ready">定位尚未完成</string>
     <string name="resolve_dialog_title">Join room id</string>
+    <string name="scale_up">放大</string>
+    <string name="scale_down">縮小</string>
     <string name="resolve_dialog_ok">Ok</string>
     <string name="cancel">Cancel</string>
 </resources>
