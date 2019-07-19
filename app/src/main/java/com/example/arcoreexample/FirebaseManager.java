@@ -31,7 +31,7 @@ class FirebaseManager {
     interface CloudAnchorIdListener {
 
         /** Invoked when a new cloud anchor ID is available. */
-        void onNewCloudAnchorId(String cameraId, String cloudAnchorId);
+        void onNewCloudAnchorId(String cameraId, String cloudAnchorId, String otherData);
     }
 
     // Names of the nodes used in the Firebase Database
@@ -43,6 +43,7 @@ class FirebaseManager {
     private static final String KEY_ANCHOR_ID = "hosted_anchor_id";
     private static final String CAMERA_ANCHOR_ID = "camera_anchor_id";
     private static final String KEY_TIMESTAMP = "updated_at_timestamp";
+    private static final String OTHER_DATA = "other_data";
     private static final String DISPLAY_NAME_VALUE = "Ar Core Sample";
 
     private final FirebaseApp app;
@@ -104,13 +105,14 @@ class FirebaseManager {
     }
 
     /** Stores the given anchor ID in the given room code. */
-    void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId, String cameraAnchorId) {
+    void storeAnchorIdInRoom(Long roomCode, String cloudAnchorId, String cameraAnchorId, String otherData) {
         Preconditions.checkNotNull(app, "Firebase App was null");
         DatabaseReference roomRef = hotspotListRef.child(String.valueOf(roomCode));
         roomRef.child(KEY_DISPLAY_NAME).setValue(DISPLAY_NAME_VALUE);
         roomRef.child(KEY_ANCHOR_ID).setValue(cloudAnchorId);
         roomRef.child(CAMERA_ANCHOR_ID).setValue(cameraAnchorId);
         roomRef.child(KEY_TIMESTAMP).setValue(System.currentTimeMillis());
+        roomRef.child(OTHER_DATA).setValue(otherData);
     }
 
     /**
@@ -127,14 +129,16 @@ class FirebaseManager {
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         Object camObj = dataSnapshot.child(CAMERA_ANCHOR_ID).getValue();
                         Object valObj = dataSnapshot.child(KEY_ANCHOR_ID).getValue();
+                        Object othData = dataSnapshot.child(OTHER_DATA).getValue();
                         if (valObj != null) {
                             String camId = String.valueOf(camObj);
                             String anchorId = String.valueOf(valObj);
+                            String otherData = String.valueOf(othData);
                             if (!camId.isEmpty() && !anchorId.isEmpty()) {
-                                listener.onNewCloudAnchorId(camId, anchorId);
+                                listener.onNewCloudAnchorId(camId, anchorId, otherData);
                             }
                         } else {
-                            listener.onNewCloudAnchorId(null, null);
+                            listener.onNewCloudAnchorId(null, null, null);
                         }
                     }
 

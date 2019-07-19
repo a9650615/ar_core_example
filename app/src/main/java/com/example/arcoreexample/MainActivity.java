@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
             if (currentMode == HostResolveMode.HOSTING || currentMode == HostResolveMode.RESOLVING) {
                 currentMode = HostResolveMode.HOSTING;
                 cloudAnchorManager.clearListeners();
-                cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener);
+                cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
 //                cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);
             }
         });
@@ -335,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
         // Register a new listener for the given room.
         firebaseManager.registerNewListenerForRoom(
                 roomCode,
-                (camId, cloudAnchorId) -> {
+                (camId, cloudAnchorId, otherData) -> {
                     if (null == cloudAnchorId) {
                         snackbarHelper.showMessageWithDismiss(this, getString(R.string.no_room_alert));
                         return;
@@ -344,7 +344,7 @@ public class MainActivity extends AppCompatActivity {
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
                             camId,
-                            (anchor, camera) -> {
+                            (anchor, camera, oth) -> {
                                 // When the anchor has been resolved, or had a final error state.
                                 Anchor.CloudAnchorState cloudState = camera.getCloudAnchorState();
                                 if (cloudState.isError()) {
@@ -363,6 +363,7 @@ public class MainActivity extends AppCompatActivity {
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
                                 String[] posStr = cloudAnchorId.split(",");
                                 float[] rotate = {-Float.parseFloat(posStr[3]), -Float.parseFloat(posStr[4]), -Float.parseFloat(posStr[5]), -Float.parseFloat(posStr[6])};
+                                setModelData(otherData);
                                 setNewAnchor(
                                         mSession.createAnchor(
                                                 camera.getPose().extractTranslation().compose(
@@ -376,6 +377,16 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    protected String getModelData() {
+        return scaleRatio+",";
+    }
+
+    protected void setModelData(String data) {
+        String[] posStr = data.split(",");
+        scaleRatio = Float.parseFloat(posStr[0]);
+//        setNewAnchor(lastAnchor);
+    }
+
     public void onCreateRoom(View view) {
         if (hostListener != null) {
             return;
@@ -384,7 +395,7 @@ public class MainActivity extends AppCompatActivity {
         hostListener = new RoomCodeAndCloudAnchorIdListener();
         firebaseManager.getNewRoomCode(hostListener);
         cloudAnchorManager.setCameraAnchor(firstCameraAnchor);
-        cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);// host to online
+        cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener, getModelData());// host to online
     }
 
     public void onJoinRoom(View view) {
@@ -399,12 +410,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void onScaleUp(View view) {
         scaleRatio += 0.3f;
+        cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
         setNewAnchor(lastAnchor);
     }
 
     public void onScaleDown(View view) {
         if (scaleRatio - 0.3f > 0) {
             scaleRatio -= 0.3f;
+            cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
             setNewAnchor(lastAnchor);
         }
     }
@@ -416,6 +429,7 @@ public class MainActivity extends AppCompatActivity {
         private Long roomCode;
         private String anchorPos;
         private String cameraAnchorId;
+        private String otherData;
 
         @Override
         public void onNewRoomCode(Long newRoomCode) {
@@ -442,7 +456,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void onCloudTaskComplete(String pos, Anchor cameraAnchor) {
+        public void onCloudTaskComplete(String pos, Anchor cameraAnchor, String othData) {
             Anchor.CloudAnchorState cloudState = cameraAnchor.getCloudAnchorState();
             if (cloudState.isError()) {
                 Log.e(TAG, "Error hosting a cloud anchor, state " + cloudState);
@@ -456,6 +470,7 @@ public class MainActivity extends AppCompatActivity {
 //            cloudAnchorId = anchor.getCloudAnchorId();
             anchorPos = pos;
             cameraAnchorId = cameraAnchor.getCloudAnchorId();
+            otherData = othData;
             checkAndMaybeShare();
         }
 
@@ -464,7 +479,7 @@ public class MainActivity extends AppCompatActivity {
             if (roomCode == null || anchorPos == null || cameraAnchorId == null) {
                 return;
             }
-            firebaseManager.storeAnchorIdInRoom(roomCode, anchorPos, cameraAnchorId);
+            firebaseManager.storeAnchorIdInRoom(roomCode, anchorPos, cameraAnchorId, otherData);
             snackbarHelper.showMessageWithDismiss(
                     MainActivity.this, getString(R.string.snackbar_cloud_id_shared));
         }

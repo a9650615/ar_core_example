@@ -13,6 +13,16 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+class AnchorData {
+    public String otherData;
+    public CloudAnchorManager.CloudAnchorListener listener;
+
+    public AnchorData(String data, CloudAnchorManager.CloudAnchorListener setListener) {
+        otherData = data;
+        listener = setListener;
+    }
+}
+
 /**
  * A helper class to handle all the Cloud Anchors logic, and add a callback-like mechanism on top of
  * the existing ARCore API.
@@ -25,13 +35,13 @@ class CloudAnchorManager {
     interface CloudAnchorListener {
 
         /** This method is invoked when the results of a Cloud Anchor operation are available. */
-        void onCloudTaskComplete(String anchor, Anchor cameraAnchorId);
+        void onCloudTaskComplete(String anchor, Anchor cameraAnchorId, String otherData);
 
     }
 
     @Nullable
     private Session session = null;
-    private final HashMap<Anchor, CloudAnchorListener> pendingAnchors = new HashMap<>();
+    private final HashMap<Anchor, AnchorData> pendingAnchors = new HashMap<>();
     private Anchor cameraAnchor;
     private Anchor cameraCloudAnchor;
 
@@ -51,16 +61,16 @@ class CloudAnchorManager {
      * This method hosts an anchor. The {@code listener} will be invoked when the results are
      * available.
      */
-    synchronized void hostCloudAnchor(Anchor anchor, CloudAnchorListener listener) {
+    synchronized void hostCloudAnchor(Anchor anchor, CloudAnchorListener listener, String otherData) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
 //        Anchor newAnchor = session.hostCloudAnchor(anchor);
         cameraCloudAnchor = session.hostCloudAnchor(cameraAnchor);
-        pendingAnchors.put(anchor, listener);
+        pendingAnchors.put(anchor, new AnchorData(otherData, listener));
     }
 
-    synchronized void putCloudAnchor(Anchor anchor, CloudAnchorListener listener) {
+    synchronized void putCloudAnchor(Anchor anchor, CloudAnchorListener listener, String otherData) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
-        pendingAnchors.put(anchor, listener);
+        pendingAnchors.put(anchor, new AnchorData(otherData, listener));
     }
 
     /**
@@ -71,7 +81,7 @@ class CloudAnchorManager {
         Preconditions.checkNotNull(session, "The session cannot be null.");
         cameraCloudAnchor = session.resolveCloudAnchor(anchorId);
 //        Anchor newAnchor = session.resolveCloudAnchor(anchorId);
-        pendingAnchors.put(cameraCloudAnchor, listener);
+        pendingAnchors.put(cameraCloudAnchor, new AnchorData("", listener));
     }
 
     synchronized String generateDistanceOfAnchorToCamera(Pose startPose, Pose endPose) {
@@ -90,13 +100,14 @@ class CloudAnchorManager {
     /** Should be called after a {@link Session#update()} call. */
     synchronized void onUpdate() {
         Preconditions.checkNotNull(session, "The session cannot be null.");
-        Iterator<Map.Entry<Anchor, CloudAnchorListener>> iter = pendingAnchors.entrySet().iterator();
+        Iterator<Map.Entry<Anchor, AnchorData>> iter = pendingAnchors.entrySet().iterator();
         while (iter.hasNext() && null != cameraCloudAnchor) {
-            Map.Entry<Anchor, CloudAnchorListener> entry = iter.next();
+            Map.Entry<Anchor, AnchorData> entry = iter.next();
             Anchor anchor = entry.getKey();
             if (isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
-                CloudAnchorListener listener = entry.getValue();
-                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose().extractTranslation(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor);
+                CloudAnchorListener listener = entry.getValue().listener;
+                String otherData = entry.getValue().otherData;
+                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose().extractTranslation(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor, otherData);
                 iter.remove();
             }
         }
