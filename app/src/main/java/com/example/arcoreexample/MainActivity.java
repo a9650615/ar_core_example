@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.graphics.Point;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,6 +37,7 @@ import com.google.ar.sceneform.AnchorNode;
 import com.google.ar.sceneform.FrameTime;
 import com.google.ar.sceneform.Node;
 import com.google.ar.sceneform.Scene;
+import com.google.ar.sceneform.assets.RenderableSource;
 import com.google.ar.sceneform.math.Quaternion;
 import com.google.ar.sceneform.math.Vector3;
 import com.google.ar.sceneform.rendering.ModelRenderable;
@@ -75,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
+    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1562612558584457/cXyQGUwmlA5/9Vh9L52uUvX/model.gltf";
 
     private Display display;
 
@@ -98,18 +101,36 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+//        ModelRenderable.builder()
+//                .setSource(this, R.raw.andy)
+//                .build()
+//                .thenAccept(renderable -> andyRenderable = renderable)
+//                .exceptionally(
+//                        throwable -> {
+//                            Toast toast =
+//                                    Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
+//                            toast.setGravity(Gravity.CENTER, 0, 0);
+//                            toast.show();
+//                            return null;
+//                        });
+
         ModelRenderable.builder()
-                .setSource(this, R.raw.andy)
-                .build()
-                .thenAccept(renderable -> andyRenderable = renderable)
-                .exceptionally(
-                        throwable -> {
-                            Toast toast =
-                                    Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
-                            toast.setGravity(Gravity.CENTER, 0, 0);
-                            toast.show();
-                            return null;
-                        });
+//            .setSource(this, R.raw.andy)
+            .setSource(this, RenderableSource.builder().setSource(
+                this,
+                    Uri.parse(modelLink),
+                    RenderableSource.SourceType.GLTF2
+            ).build())
+            .build()
+            .thenAccept(renderable -> andyRenderable = renderable)
+            .exceptionally(
+                    throwable -> {
+                        Toast toast =
+                                Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                        return null;
+                    });
 
         ViewRenderable.builder()
                 .setView(arFragment.getContext(), R.layout.test_render_view)
@@ -294,9 +315,9 @@ public class MainActivity extends AppCompatActivity {
         Node node = new Node();
         node.setParent(anchorNode);
         node.setLocalScale(new Vector3(0.3f, 0.3f, 0.3f));
-        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
+//        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
-        node.setRenderable(imageRenderable);
+        node.setRenderable(andyRenderable);
 //        tmpAnchor.detach();
         newAnchor.detach();
     }

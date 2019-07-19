@@ -16,7 +16,7 @@
         android:layout_width="match_parent"
         android:layout_height="80dp"
         android:layout_marginBottom="40dp"
-        android:visibility="invisible"
+        android:visibility="gone"
         android:id="@+id/func_btns"
         app:layout_constraintBottom_toBottomOf="parent">
 
