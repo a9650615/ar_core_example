@@ -8,6 +8,9 @@ import com.google.ar.core.Anchor;
 import com.google.ar.core.Anchor.CloudAnchorState;
 import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
+import com.google.ar.sceneform.AnchorNode;
+import com.google.ar.sceneform.math.Quaternion;
+import com.google.ar.sceneform.math.Vector3;
 import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -44,6 +47,7 @@ class CloudAnchorManager {
     private final HashMap<Anchor, AnchorData> pendingAnchors = new HashMap<>();
     private Anchor cameraAnchor;
     private Anchor cameraCloudAnchor;
+    private String lastAnchorId;
 
     synchronized void setCameraAnchor(Anchor newCameraAnchor) {
         cameraAnchor = newCameraAnchor;
@@ -79,22 +83,35 @@ class CloudAnchorManager {
      */
     synchronized void resolveCloudAnchor(String anchorId, CloudAnchorListener listener) {
         Preconditions.checkNotNull(session, "The session cannot be null.");
-        cameraCloudAnchor = session.resolveCloudAnchor(anchorId);
+        if (lastAnchorId != anchorId) {
+            cameraCloudAnchor = session.resolveCloudAnchor(anchorId);
+            pendingAnchors.put(cameraCloudAnchor, new AnchorData("", listener));
+        }
 //        Anchor newAnchor = session.resolveCloudAnchor(anchorId);
-        pendingAnchors.put(cameraCloudAnchor, new AnchorData("", listener));
     }
 
-    synchronized String generateDistanceOfAnchorToCamera(Pose startPose, Pose endPose) {
+    synchronized String generateDistanceOfAnchorToCamera(Anchor startAnchor, Anchor endAnchor) {
+        AnchorNode startNode = new AnchorNode(startAnchor);
+        AnchorNode endNode = new AnchorNode(endAnchor);
+        Vector3 startVect = startNode.getWorldPosition();
+        Vector3 endVect = endNode.getWorldPosition();
+        final Vector3 difference = Vector3.subtract(startVect, endVect).normalized();
+        final Quaternion rotate = startNode.getWorldRotation();
+//        return difference.x+","+difference.y+","+difference.z+","+rotate.x+","+rotate.y+","+rotate.z+","+rotate.w;
+        Pose startPose = startAnchor.getPose();
+        Pose endPose = endAnchor.getPose();
         float dx = startPose.tx() - endPose.tx();
         float dy = startPose.ty() - endPose.ty();
         float dz = startPose.tz() - endPose.tz();
+        return dx+","+dy+","+dz+","+rotate.x+","+rotate.y+","+rotate.z+","+rotate.w;
+//
+//        float qx = startPose.qx() - endPose.qx();
+//        float qy = startPose.qy() - endPose.qy();
+//        float qz = startPose.qz() - endPose.qz();
+//        float qw = startPose.qw() - endPose.qw();
+//
+//        return dx+","+dy+","+dz+","+startPose.qx()+","+startPose.qy()+","+startPose.qz()+","+startPose.qw();
 
-        float qx = startPose.qx() - endPose.qx();
-        float qy = startPose.qy() - endPose.qy();
-        float qz = startPose.qz() - endPose.qz();
-        float qw = startPose.qw() - endPose.qw();
-
-        return dx+","+dy+","+dz+","+startPose.qx()+","+startPose.qy()+","+startPose.qz()+","+startPose.qw();
     }
 
     /** Should be called after a {@link Session#update()} call. */
@@ -107,7 +124,7 @@ class CloudAnchorManager {
             if (isReturnableState(cameraCloudAnchor.getCloudAnchorState())) {
                 CloudAnchorListener listener = entry.getValue().listener;
                 String otherData = entry.getValue().otherData;
-                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor.getPose().extractTranslation(), cameraCloudAnchor.getPose().extractTranslation()), cameraCloudAnchor, otherData);
+                listener.onCloudTaskComplete(generateDistanceOfAnchorToCamera(anchor, cameraCloudAnchor), cameraCloudAnchor, otherData);
                 iter.remove();
             }
         }

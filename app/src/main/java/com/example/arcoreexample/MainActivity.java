@@ -40,7 +40,10 @@ import com.google.ar.sceneform.Scene;
 import com.google.ar.sceneform.assets.RenderableSource;
 import com.google.ar.sceneform.math.Quaternion;
 import com.google.ar.sceneform.math.Vector3;
+import com.google.ar.sceneform.rendering.Color;
+import com.google.ar.sceneform.rendering.MaterialFactory;
 import com.google.ar.sceneform.rendering.ModelRenderable;
+import com.google.ar.sceneform.rendering.ShapeFactory;
 import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.common.base.Preconditions;
@@ -73,6 +76,8 @@ public class MainActivity extends AppCompatActivity {
     private RoomCodeAndCloudAnchorIdListener hostListener;
     private Anchor lastAnchor;
     private Anchor firstCameraAnchor;
+    private Anchor resolveCameraAnchor;
+    private Pose nowCamPose;
     private HostResolveMode currentMode;
 
     private ViewRenderable imageRenderable;
@@ -204,6 +209,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             Frame frame = mSession.update();
             cloudAnchorManager.onUpdate();
+            nowCamPose = frame.getCamera().getPose();
             for (Plane plane : frame.getUpdatedTrackables(Plane.class)) {
                 if (plane.getTrackingState() == TrackingState.TRACKING) {
                     // detect has finished
@@ -225,8 +231,8 @@ public class MainActivity extends AppCompatActivity {
                                 // show layout of functions buttons
 
                                 // init camera anchor
-                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
-//                                firstCameraAnchor = anchor;
+//                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
+                                firstCameraAnchor = anchor;
                             } else {
                                 // still not track finished
                                 return;
@@ -306,19 +312,62 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    private void drawLineBetweenTwoAnchor(AnchorNode a1, Anchor a2, int color[]) {
+        Vector3 v1 = a1.getWorldPosition();
+        Vector3 v2 = new AnchorNode(a2).getWorldPosition();
+
+        final Vector3 difference = Vector3.subtract(v1, v2);
+        final Vector3 directionFromTopToBottom = difference.normalized();
+        final Quaternion rotationFromAToB =
+                Quaternion.lookRotation(directionFromTopToBottom, Vector3.up());
+        MaterialFactory.makeOpaqueWithColor(getApplicationContext(), new Color(color[0], color[1], color[2]))
+                .thenAccept(
+                        material -> {
+                            /* Then, create a rectangular prism, using ShapeFactory.makeCube() and use the difference vector
+                                   to extend to the necessary length.  */
+                            ModelRenderable model = ShapeFactory.makeCube(
+                                    new Vector3(.01f, .01f, difference.length()),
+                                    Vector3.zero(), material);
+                            /* Last, set the world rotation of the node to the rotation calculated earlier and set the world position to
+                                   the midpoint between the given points . */
+                            Node lineNode = new Node();
+                            lineNode.setParent(a1);
+                            lineNode.setRenderable(model);
+                            lineNode.setWorldPosition(Vector3.add(v1, v2).scaled(.5f));
+                            lineNode.setWorldRotation(rotationFromAToB);
+                        }
+                );
+    }
+
     private void setNewAnchor(Anchor newAnchor) {
         if (lastAnchor != null) {
             lastAnchor.detach();
         }
         lastAnchor = mSession.createAnchor(newAnchor.getPose().extractTranslation());
+
+        final float[] anchorMatrix = new float[16];
+        lastAnchor.getPose().toMatrix(anchorMatrix, 0);
+        makeMessage(anchorMatrix.toString());
+
         AnchorNode anchorNode = new AnchorNode(lastAnchor);
         anchorNode.setParent(arFragment.getArSceneView().getScene());
         Node node = new Node();
         node.setParent(anchorNode);
         node.setLocalScale(new Vector3(scaleRatio, scaleRatio, scaleRatio));
+        Vector3 w3 = node.getWorldPosition();
+
 //        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
         node.setRenderable(andyRenderable);
+
+        // draw line
+        int[] blue = {0, 255, 244};
+        int[] red = {235, 64, 52};
+        drawLineBetweenTwoAnchor(anchorNode, firstCameraAnchor, blue);
+        if (null != resolveCameraAnchor) {
+            drawLineBetweenTwoAnchor(anchorNode, resolveCameraAnchor, red);
+        }
+        // draw line
 //        tmpAnchor.detach();
         newAnchor.detach();
     }
@@ -362,17 +411,25 @@ public class MainActivity extends AppCompatActivity {
                                 snackbarHelper.showMessageWithDismiss(
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
                                 String[] posStr = cloudAnchorId.split(",");
-                                float[] rotate = {-Float.parseFloat(posStr[3]), -Float.parseFloat(posStr[4]), -Float.parseFloat(posStr[5]), -Float.parseFloat(posStr[6])};
-                                setModelData(otherData);
-                                setNewAnchor(
-                                        mSession.createAnchor(
-                                                camera.getPose().extractTranslation().compose(
-                                                        Pose
+                                float[] rotate = {Float.parseFloat(posStr[3]), Float.parseFloat(posStr[4]), Float.parseFloat(posStr[5]), Float.parseFloat(posStr[6])};
+                                Pose cameraPos = firstCameraAnchor.getPose();
+                                Pose firstCamPose = camera.getPose();
+//                                Pose nowCamPose =
+                                float cameraOffset[] = { cameraPos.tx() - firstCamPose.tx(), cameraPos.ty() - cameraPos.ty(), cameraPos.tz() - cameraPos.tz() };
+                                float camRotate[] = nowCamPose.getRotationQuaternion();
+                                Anchor resolveRelativeAnchor = mSession.createAnchor(
+                                        camera.getPose().extractTranslation().compose(
+                                                Pose
+                                                    .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
+//                                                    .makeRotation(-camRotate[0], -camRotate[1], -camRotate[2], -camRotate[3])
+//                                                    .makeRotation(rotate)
+//                                                                .makeTranslation(cameraOffset)
 //                                                                .makeRotation(rotate)
-                                                                .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
-                                                )
                                         )
                                 );
+                                resolveCameraAnchor = camera;
+                                setModelData(otherData);
+                                setNewAnchor(resolveRelativeAnchor);
                             });
                 });
     }
@@ -489,7 +546,7 @@ public class MainActivity extends AppCompatActivity {
             }
             firebaseManager.storeAnchorIdInRoom(roomCode, anchorPos, cameraAnchorId, otherData);
             snackbarHelper.showMessageWithDismiss(
-                    MainActivity.this, getString(R.string.snackbar_cloud_id_shared));
+                    MainActivity.this, getString(R.string.snackbar_cloud_id_shared) + ":" + roomCode);
         }
     }
 }
