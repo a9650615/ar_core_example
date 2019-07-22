@@ -418,11 +418,10 @@ public class MainActivity extends AppCompatActivity {
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
                                 String[] posStr = cloudAnchorId.split(",");
                                 float[] rotate = {0, 0, 0, Float.parseFloat(posStr[6])};
-                                Pose cameraPos = firstCameraAnchor.getPose();
-                                Pose firstCamPose = camera.getPose();
-//                                Pose nowCamPose =
-                                float cameraOffset[] = { cameraPos.tx() - firstCamPose.tx(), cameraPos.ty() - cameraPos.ty(), cameraPos.tz() - cameraPos.tz() };
-                                float camRotate[] = nowCamPose.getRotationQuaternion();
+//                                Pose cameraPos = firstCameraAnchor.getPose();
+//                                Pose firstCamPose = camera.getPose();
+//                                float cameraOffset[] = { cameraPos.tx() - firstCamPose.tx(), cameraPos.ty() - cameraPos.ty(), cameraPos.tz() - cameraPos.tz() };
+//                                float camRotate[] = nowCamPose.getRotationQuaternion();
                                 Anchor resolveRelativeAnchor = mSession.createAnchor(
                                         camera.getPose().extractTranslation().compose(
                                                 Pose
@@ -433,6 +432,9 @@ public class MainActivity extends AppCompatActivity {
 //                                                                .makeRotation(rotate)
                                         )
                                 );
+                                if (null != resolveCameraAnchor) {
+                                    resolveRelativeAnchor.detach();
+                                }
                                 resolveCameraAnchor = camera;
                                 setModelData(otherData);
 //                                setNewAnchor(resolveRelativeAnchor);
