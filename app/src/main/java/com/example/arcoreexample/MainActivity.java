@@ -51,7 +51,9 @@ import com.google.firebase.database.DatabaseError;
 
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -82,12 +84,20 @@ public class MainActivity extends AppCompatActivity {
 
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
-    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563399409719085/cJotNkUGLMw/3QAtpoL9oZ7/model.gltf";
+    Map<String, String> modelLinks = createMap();
+    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563760651765431/1dWAYYfUAhn/3MEx9PZHD_W/model.gltf";
     private float scaleRatio = 0.3f;
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
 
     private Display display;
+
+    private static Map<String, String> createMap() {
+        Map<String,String> myMap = new HashMap<String,String>();
+        myMap.put("House", "https://poly.googleusercontent.com/downloads/c/fp/1563399409719085/cJotNkUGLMw/3QAtpoL9oZ7/model.gltf");
+        myMap.put("Fox", "https://poly.googleusercontent.com/downloads/c/fp/1563760651765431/1dWAYYfUAhn/3MEx9PZHD_W/model.gltf");
+        return myMap;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
 //            .setSource(this, R.raw.andy)
             .setSource(this, RenderableSource.builder().setSource(
                 this,
-                    Uri.parse(modelLink),
+                    Uri.parse(modelLinks.get("House")),
                     RenderableSource.SourceType.GLTF2
             ).build())
             .build()
