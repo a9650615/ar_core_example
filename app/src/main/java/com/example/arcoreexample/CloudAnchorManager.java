@@ -95,7 +95,7 @@ class CloudAnchorManager {
         AnchorNode endNode = new AnchorNode(endAnchor);
         Vector3 startVect = startNode.getWorldPosition();
         Vector3 endVect = endNode.getWorldPosition();
-        final Vector3 difference = Vector3.subtract(startVect, endVect).normalized();
+        final Vector3 difference = Vector3.subtract(startVect, endVect);
         final Quaternion rotate = startNode.getWorldRotation();
 //        return difference.x+","+difference.y+","+difference.z+","+rotate.x+","+rotate.y+","+rotate.z+","+rotate.w;
         Pose startPose = startAnchor.getPose();
@@ -103,14 +103,14 @@ class CloudAnchorManager {
         float dx = startPose.tx() - endPose.tx();
         float dy = startPose.ty() - endPose.ty();
         float dz = startPose.tz() - endPose.tz();
-        return dx+","+dy+","+dz+","+rotate.x+","+rotate.y+","+rotate.z+","+rotate.w;
+//        return dx+","+dy+","+dz+","+rotate.x+","+rotate.y+","+rotate.z+","+rotate.w;
 //
 //        float qx = startPose.qx() - endPose.qx();
 //        float qy = startPose.qy() - endPose.qy();
 //        float qz = startPose.qz() - endPose.qz();
 //        float qw = startPose.qw() - endPose.qw();
 //
-//        return dx+","+dy+","+dz+","+startPose.qx()+","+startPose.qy()+","+startPose.qz()+","+startPose.qw();
+        return dx+","+dy+","+dz+","+startPose.qx()+","+endPose.qy()+","+endPose.qz()+","+endPose.qw();
 
     }
 

@@ -231,8 +231,8 @@ public class MainActivity extends AppCompatActivity {
                                 // show layout of functions buttons
 
                                 // init camera anchor
-//                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
-                                firstCameraAnchor = anchor;
+                                firstCameraAnchor = mSession.createAnchor(frame.getCamera().getPose());
+//                                firstCameraAnchor = anchor;
                             } else {
                                 // still not track finished
                                 return;
@@ -339,7 +339,7 @@ public class MainActivity extends AppCompatActivity {
                 );
     }
 
-    private void setNewAnchor(Anchor newAnchor) {
+    private void setNewAnchor(Anchor newAnchor, float[] rotate) {
         if (lastAnchor != null) {
             lastAnchor.detach();
         }
@@ -354,7 +354,8 @@ public class MainActivity extends AppCompatActivity {
         Node node = new Node();
         node.setParent(anchorNode);
         node.setLocalScale(new Vector3(scaleRatio, scaleRatio, scaleRatio));
-        Vector3 w3 = node.getWorldPosition();
+        float[] cameraRotate = nowCamPose.getRotationQuaternion();
+        node.setLocalRotation(new Quaternion(rotate[0], rotate[1], rotate[2], rotate[3]));
 
 //        node.setLocalRotation(Quaternion.axisAngle(new Vector3(-1f, 0, 0), 90f)); // put flat
 //            node.setLocalPosition(new Vector3(0f,0f,-1f));
@@ -370,6 +371,11 @@ public class MainActivity extends AppCompatActivity {
         // draw line
 //        tmpAnchor.detach();
         newAnchor.detach();
+    }
+
+    private void setNewAnchor(Anchor newAnchor) {
+        float[] rotate = {0, 0, 0, 0};
+        setNewAnchor(newAnchor, rotate);
     }
 
     private void onRoomCodeEntered(Long roomCode) {
@@ -411,7 +417,7 @@ public class MainActivity extends AppCompatActivity {
                                 snackbarHelper.showMessageWithDismiss(
                                         MainActivity.this, getString(R.string.snackbar_resolve_success));
                                 String[] posStr = cloudAnchorId.split(",");
-                                float[] rotate = {Float.parseFloat(posStr[3]), Float.parseFloat(posStr[4]), Float.parseFloat(posStr[5]), Float.parseFloat(posStr[6])};
+                                float[] rotate = {0, 0, 0, Float.parseFloat(posStr[6])};
                                 Pose cameraPos = firstCameraAnchor.getPose();
                                 Pose firstCamPose = camera.getPose();
 //                                Pose nowCamPose =
@@ -429,7 +435,8 @@ public class MainActivity extends AppCompatActivity {
                                 );
                                 resolveCameraAnchor = camera;
                                 setModelData(otherData);
-                                setNewAnchor(resolveRelativeAnchor);
+//                                setNewAnchor(resolveRelativeAnchor);
+                                setNewAnchor(resolveRelativeAnchor, rotate);
                             });
                 });
     }
