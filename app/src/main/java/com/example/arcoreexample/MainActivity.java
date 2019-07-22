@@ -84,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
     private ModelRenderable andyRenderable;
     private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563399409719085/cJotNkUGLMw/3QAtpoL9oZ7/model.gltf";
     private float scaleRatio = 0.3f;
+    private int tempHostCount = 0;
+    final private boolean DEBUG = false;
 
     private Display display;
 
@@ -155,6 +157,7 @@ public class MainActivity extends AppCompatActivity {
                 currentMode = HostResolveMode.HOSTING;
                 cloudAnchorManager.clearListeners();
                 cloudAnchorManager.putCloudAnchor(lastAnchor, hostListener, getModelData());
+                tempHostCount = 1;
 //                cloudAnchorManager.hostCloudAnchor(lastAnchor, hostListener);
             }
         });
@@ -223,7 +226,7 @@ public class MainActivity extends AppCompatActivity {
                             if (frame.hitTest(tap).size() > 0) {
                                 makeMessage("tracking finish");
                                 HitResult closeHitResult = getClosestHit(frame.hitTest(tap));
-                                makeMessage(Float.toString(closeHitResult.getDistance()));
+//                                makeMessage(Float.toString(closeHitResult.getDistance()));
                                 Anchor anchor = closeHitResult.createAnchor();
                                 findViewById(R.id.func_btns).setVisibility(View.VISIBLE);
                                 setNewAnchor(anchor);
@@ -347,7 +350,7 @@ public class MainActivity extends AppCompatActivity {
 
         final float[] anchorMatrix = new float[16];
         lastAnchor.getPose().toMatrix(anchorMatrix, 0);
-        makeMessage(anchorMatrix.toString());
+//        makeMessage(anchorMatrix.toString());
 
         AnchorNode anchorNode = new AnchorNode(lastAnchor);
         anchorNode.setParent(arFragment.getArSceneView().getScene());
@@ -364,9 +367,11 @@ public class MainActivity extends AppCompatActivity {
         // draw line
         int[] blue = {0, 255, 244};
         int[] red = {235, 64, 52};
-        drawLineBetweenTwoAnchor(anchorNode, firstCameraAnchor, blue);
-        if (null != resolveCameraAnchor) {
-            drawLineBetweenTwoAnchor(anchorNode, resolveCameraAnchor, red);
+        if (DEBUG) {
+            drawLineBetweenTwoAnchor(anchorNode, firstCameraAnchor, blue);
+            if (null != resolveCameraAnchor) {
+                drawLineBetweenTwoAnchor(anchorNode, resolveCameraAnchor, red);
+            }
         }
         // draw line
 //        tmpAnchor.detach();
@@ -391,11 +396,17 @@ public class MainActivity extends AppCompatActivity {
         firebaseManager.registerNewListenerForRoom(
                 roomCode,
                 (camId, cloudAnchorId, otherData) -> {
+                    // if is in host mode not update
+                    makeMessage(currentMode.toString());
+                    if (tempHostCount == 1) {
+                        tempHostCount = 0;
+                        return;
+                    }
                     if (null == cloudAnchorId) {
                         snackbarHelper.showMessageWithDismiss(this, getString(R.string.no_room_alert));
                         return;
                     }
-                    makeMessage(camId);
+//                    makeMessage(camId);
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
                             camId,
