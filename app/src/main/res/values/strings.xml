@@ -15,6 +15,7 @@
     <string name="resolve_dialog_title">藉由ID加入房間</string>
     <string name="scale_up">放大</string>
     <string name="scale_down">縮小</string>
+    <string name="change_model">更換模型</string>
     <string name="resolve_dialog_ok">Ok</string>
     <string name="cancel">Cancel</string>
 </resources>

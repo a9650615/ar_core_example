@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Point;
 import android.net.Uri;
@@ -14,10 +15,15 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.Toast;
 
+import com.example.arcoreexample.model.ModelLinksManager;
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Config;
@@ -84,20 +90,13 @@ public class MainActivity extends AppCompatActivity {
 
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
-    Map<String, String> modelLinks = createMap();
+    ModelLinksManager modelLinkManager = new ModelLinksManager();
     private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563760651765431/1dWAYYfUAhn/3MEx9PZHD_W/model.gltf";
     private float scaleRatio = 0.3f;
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
 
     private Display display;
-
-    private static Map<String, String> createMap() {
-        Map<String,String> myMap = new HashMap<String,String>();
-        myMap.put("House", "https://poly.googleusercontent.com/downloads/c/fp/1563399409719085/cJotNkUGLMw/3QAtpoL9oZ7/model.gltf");
-        myMap.put("Fox", "https://poly.googleusercontent.com/downloads/c/fp/1563760651765431/1dWAYYfUAhn/3MEx9PZHD_W/model.gltf");
-        return myMap;
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,24 +131,7 @@ public class MainActivity extends AppCompatActivity {
 //                            return null;
 //                        });
 
-        ModelRenderable.builder()
-//            .setSource(this, R.raw.andy)
-            .setSource(this, RenderableSource.builder().setSource(
-                this,
-                    Uri.parse(modelLinks.get("House")),
-                    RenderableSource.SourceType.GLTF2
-            ).build())
-            .build()
-            .thenAccept(renderable -> andyRenderable = renderable)
-            .exceptionally(
-                    throwable -> {
-                        Toast toast =
-                                Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
-                        toast.setGravity(Gravity.CENTER, 0, 0);
-                        toast.show();
-                        return null;
-                    });
-
+        updateModel(true);
         ViewRenderable.builder()
                 .setView(arFragment.getContext(), R.layout.test_render_view)
                 .build()
@@ -216,6 +198,31 @@ public class MainActivity extends AppCompatActivity {
         if (mSession != null) {
             mSession.pause();
         }
+    }
+
+    public void updateModel(boolean firstTime) {
+        ModelRenderable.builder()
+//            .setSource(this, R.raw.andy)
+            .setSource(this, RenderableSource.builder().setSource(
+                    this,
+                    Uri.parse(modelLink),
+                    RenderableSource.SourceType.GLTF2
+            ).build())
+            .build()
+            .thenAccept(renderable -> {
+                andyRenderable = renderable;
+                if (!firstTime) {
+                    setNewAnchor(lastAnchor);
+                }
+            })
+            .exceptionally(
+                    throwable -> {
+                        Toast toast =
+                                Toast.makeText(this, "Unable to load andy renderable", Toast.LENGTH_LONG);
+                        toast.setGravity(Gravity.CENTER, 0, 0);
+                        toast.show();
+                        return null;
+                    });
     }
 
    public void initScene() {
@@ -507,6 +514,27 @@ public class MainActivity extends AppCompatActivity {
         scaleRatio += 0.3f;
         setNewAnchor(lastAnchor);
         updateDatabase();
+    }
+
+    public void onChangeModel(View view) {
+        String[] keySets = Arrays.copyOf(modelLinkManager.modelList.keySet().toArray(), modelLinkManager.modelList.keySet().toArray().length, String[].class);
+        final Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.list_view);
+        ListView listView = (ListView) dialog.findViewById(R.id.list_view);
+        ArrayAdapter adapter = new ArrayAdapter<String>(this,
+                R.layout.text_view, keySets);
+
+        listView.setAdapter(adapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Toast.makeText(getApplicationContext(), "請等待更新成" + keySets[position], Toast.LENGTH_SHORT).show();
+                modelLink = modelLinkManager.modelList.values().toArray()[position].toString();
+                updateModel(false);
+                dialog.cancel();
+            }
+        });
+        dialog.show();
     }
 
     public void onScaleDown(View view) {
