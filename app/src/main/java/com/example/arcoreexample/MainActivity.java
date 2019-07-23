@@ -50,6 +50,7 @@ import com.google.ar.sceneform.rendering.Color;
 import com.google.ar.sceneform.rendering.MaterialFactory;
 import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.rendering.ShapeFactory;
+import com.google.ar.sceneform.rendering.Texture;
 import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.common.base.Preconditions;
@@ -91,8 +92,8 @@ public class MainActivity extends AppCompatActivity {
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
     ModelLinksManager modelLinkManager = new ModelLinksManager();
-    private String modelLink = "https://poly.googleusercontent.com/downloads/c/fp/1563760651765431/1dWAYYfUAhn/3MEx9PZHD_W/model.gltf";
-    private float scaleRatio = 0.3f;
+    private String modelLink = modelLinkManager.modelList.get("房子");
+    private float scaleRatio = 0.1f;
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
 
@@ -203,12 +204,13 @@ public class MainActivity extends AppCompatActivity {
     public void updateModel(boolean firstTime) {
         ModelRenderable.builder()
 //            .setSource(this, R.raw.andy)
-            .setSource(this, RenderableSource.builder().setSource(
+            .setSource(this,
+                RenderableSource.builder().setSource(
                     this,
                     Uri.parse(modelLink),
-                    RenderableSource.SourceType.GLTF2
-            ).build())
-            .build()
+                    RenderableSource.SourceType.GLB
+                ).build()
+            ).build()
             .thenAccept(renderable -> {
                 andyRenderable = renderable;
                 if (!firstTime) {
