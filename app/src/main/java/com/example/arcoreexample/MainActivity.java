@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private ViewRenderable imageRenderable;
     private ModelRenderable andyRenderable;
     ModelLinksManager modelLinkManager = new ModelLinksManager();
-    private String modelLink = modelLinkManager.modelList.get("房子");
+    private String modelLink = modelLinkManager.modelList.get(modelLinkManager.modelList.keySet().toArray()[0]);
     private float scaleRatio = 0.1f;
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
