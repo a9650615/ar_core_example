@@ -96,6 +96,7 @@ public class MainActivity extends AppCompatActivity {
     private float scaleRatio = 0.1f;
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
+    private boolean isFirstResolve;
 
     private Display display;
 
@@ -413,64 +414,76 @@ public class MainActivity extends AppCompatActivity {
 
         // Register a new listener for the given room.
         firebaseManager.registerNewListenerForRoom(
-                roomCode,
-                (camId, cloudAnchorId, otherData) -> {
-                    // if is in host mode not update
-                    makeMessage(currentMode.toString());
-                    if (tempHostCount == 1) {
-                        tempHostCount = 0;
-                        return;
-                    }
-                    if (null == cloudAnchorId) {
-                        snackbarHelper.showMessageWithDismiss(this, getString(R.string.no_room_alert));
-                        return;
-                    }
+            roomCode,
+            (camId, cloudAnchorId, otherData) -> {
+                // if is in host mode not update
+                makeMessage(currentMode.toString());
+                if (tempHostCount == 1) {
+                    tempHostCount = 0;
+                    return;
+                }
+                if (null == cloudAnchorId) {
+                    snackbarHelper.showMessageWithDismiss(this, getString(R.string.no_room_alert));
+                    return;
+                }
 //                    makeMessage(camId);
+                if (resolveCameraAnchor == null) {
                     // When the cloud anchor ID is available from Firebase.
                     cloudAnchorManager.resolveCloudAnchor(
-                            camId,
-                            (anchor, camera, oth) -> {
-                                // When the anchor has been resolved, or had a final error state.
-                                Anchor.CloudAnchorState cloudState = camera.getCloudAnchorState();
-                                if (cloudState.isError()) {
-                                    Log.w(
-                                            TAG,
-                                            "The anchor in room "
-                                                    + roomCode
-                                                    + " could not be resolved. The error state was "
-                                                    + cloudState);
-                                    snackbarHelper.showMessageWithDismiss(
-                                            MainActivity.this,
-                                            getString(R.string.snackbar_resolve_error) + cloudState);
-                                    return;
-                                }
+                        camId,
+                        (anchor, camera, oth) -> {
+                            // When the anchor has been resolved, or had a final error state.
+                            Anchor.CloudAnchorState cloudState = camera.getCloudAnchorState();
+                            if (cloudState.isError()) {
+                                Log.w(
+                                        TAG,
+                                        "The anchor in room "
+                                                + roomCode
+                                                + " could not be resolved. The error state was "
+                                                + cloudState);
                                 snackbarHelper.showMessageWithDismiss(
-                                        MainActivity.this, getString(R.string.snackbar_resolve_success));
-                                String[] posStr = cloudAnchorId.split(",");
-                                float[] rotate = {0, 0, 0, Float.parseFloat(posStr[6])};
+                                        MainActivity.this,
+                                        getString(R.string.snackbar_resolve_error) + cloudState);
+                                return;
+                            }
+                            snackbarHelper.showMessageWithDismiss(
+                                    MainActivity.this, getString(R.string.snackbar_resolve_success));
+
+
+                            resolveCameraAnchor = camera;
+
+                            parseAnchorFromData(cloudAnchorId, otherData);
+                        });
+                } else {
+                    parseAnchorFromData(cloudAnchorId, otherData);
+                }
+
+            });
+    }
+
+    private void parseAnchorFromData(String cloudAnchorId, String otherData) {
+        String[] posStr = cloudAnchorId.split(",");
+        float[] rotate = {0, 0, 0, Float.parseFloat(posStr[6])};
 //                                Pose cameraPos = firstCameraAnchor.getPose();
 //                                Pose firstCamPose = camera.getPose();
 //                                float cameraOffset[] = { cameraPos.tx() - firstCamPose.tx(), cameraPos.ty() - cameraPos.ty(), cameraPos.tz() - cameraPos.tz() };
 //                                float camRotate[] = nowCamPose.getRotationQuaternion();
-                                Anchor resolveRelativeAnchor = mSession.createAnchor(
-                                        camera.getPose().extractTranslation().compose(
-                                                Pose
-                                                    .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
+        Anchor resolveRelativeAnchor = mSession.createAnchor(
+                resolveCameraAnchor.getPose().extractTranslation().compose(
+                    Pose
+                        .makeTranslation(Float.parseFloat(posStr[0]), Float.parseFloat(posStr[1]), Float.parseFloat(posStr[2]))
 //                                                    .makeRotation(-camRotate[0], -camRotate[1], -camRotate[2], -camRotate[3])
 //                                                    .makeRotation(rotate)
 //                                                                .makeTranslation(cameraOffset)
 //                                                                .makeRotation(rotate)
-                                        )
-                                );
-                                if (null != resolveCameraAnchor) {
-                                    resolveRelativeAnchor.detach();
-                                }
-                                resolveCameraAnchor = camera;
-                                setModelData(otherData);
+                )
+        );
+        if (null != resolveCameraAnchor) {
+            resolveRelativeAnchor.detach();
+        }
+        setModelData(otherData);
 //                                setNewAnchor(resolveRelativeAnchor);
-                                setNewAnchor(resolveRelativeAnchor, rotate);
-                            });
-                });
+        setNewAnchor(resolveRelativeAnchor, rotate);
     }
 
     protected String getModelData() {
