@@ -411,7 +411,7 @@ public class MainActivity extends AppCompatActivity {
 //        resolveButton.setText(R.string.cancel);
 //        roomCodeText.setText(String.valueOf(roomCode));
         snackbarHelper.showMessageWithDismiss(this, getString(R.string.snackbar_on_resolve));
-
+        resolveCameraAnchor = null;
         // Register a new listener for the given room.
         firebaseManager.registerNewListenerForRoom(
             roomCode,
