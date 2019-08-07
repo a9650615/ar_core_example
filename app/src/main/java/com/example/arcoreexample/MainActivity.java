@@ -478,9 +478,9 @@ public class MainActivity extends AppCompatActivity {
 //                                                                .makeRotation(rotate)
                 )
         );
-        if (null != resolveCameraAnchor) {
-            resolveRelativeAnchor.detach();
-        }
+//        if (null != resolveCameraAnchor) {
+//            resolveRelativeAnchor.detach();
+//        }
         setModelData(otherData);
 //                                setNewAnchor(resolveRelativeAnchor);
         setNewAnchor(resolveRelativeAnchor, rotate);
@@ -497,7 +497,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onCreateRoom(View view) {
-        if (hostListener != null) {
+        if (hostListener != null && currentMode != HostResolveMode.RESOLVING) {
             return;
         }
         // host to cloud
