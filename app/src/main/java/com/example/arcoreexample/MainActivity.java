@@ -6,17 +6,29 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.media.Image;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
+import android.view.SurfaceView;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -34,6 +46,8 @@ import com.google.ar.core.Pose;
 import com.google.ar.core.Session;
 import com.google.ar.core.TrackingState;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
+import com.google.ar.core.exceptions.DeadlineExceededException;
+import com.google.ar.core.exceptions.NotYetAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
 import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
 import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException;
@@ -56,6 +70,8 @@ import com.google.ar.sceneform.ux.ArFragment;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -100,10 +116,50 @@ public class MainActivity extends AppCompatActivity {
 
     private Display display;
 
+    private SurfaceView suf;
+
+    private static byte[] imageToByte(Image image){
+        byte[] byteArray = null;
+        byteArray = NV21toJPEG(YUV420toNV21(image),image.getWidth(),image.getHeight(),100);
+        return byteArray;
+    }
+
+    private static byte[] NV21toJPEG(byte[] nv21, int width, int height, int quality) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, null);
+        yuv.compressToJpeg(new Rect(0, 0, width, height), quality, out);
+        return out.toByteArray();
+    }
+
+    private static byte[] YUV420toNV21(Image image) {
+        byte[] nv21;
+        // Get the three planes.
+        ByteBuffer yBuffer = image.getPlanes()[0].getBuffer();
+        ByteBuffer uBuffer = image.getPlanes()[1].getBuffer();
+        ByteBuffer vBuffer = image.getPlanes()[2].getBuffer();
+
+        int ySize = yBuffer.remaining();
+        int uSize = uBuffer.remaining();
+        int vSize = vBuffer.remaining();
+
+
+        nv21 = new byte[ySize + uSize + vSize];
+
+        //U and V are swapped
+        yBuffer.get(nv21, 0, ySize);
+        vBuffer.get(nv21, ySize, vSize);
+        uBuffer.get(nv21, ySize + vSize, uSize);
+
+        return nv21;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        suf = findViewById(R.id.outputSurfaceView);
+
         display = getWindowManager().getDefaultDisplay();
         checkArCoreIsEnabled();
         if( !checkIsSupportedDeviceOrFinish(this) ) {
@@ -113,6 +169,7 @@ public class MainActivity extends AppCompatActivity {
         arFragment = (ArFragment) getSupportFragmentManager().findFragmentById(R.id.ar_fragment);
 //        arFragment.getArSceneView().getPlaneRenderer().setEnabled(false);
 //        arFragment.getArSceneView().getScene().setOnUpdateListener(this::onUpdate);
+//        arFragment.getArSceneView().setVisibility(View.INVISIBLE);
         arFragment.getArSceneView().getScene().addOnUpdateListener(new Scene.OnUpdateListener() {
             @Override
             public void onUpdate(FrameTime frameTime) {
@@ -228,9 +285,63 @@ public class MainActivity extends AppCompatActivity {
                     });
     }
 
+    public static Bitmap getScreenShot(View view) {
+
+        View screenView = view.getRootView();
+        screenView.setDrawingCacheEnabled(true);
+        Bitmap bitmap = Bitmap.createBitmap(screenView.getDrawingCache());
+        screenView.setDrawingCacheEnabled(false);
+        return bitmap;
+    }
+
    public void initScene() {
         try {
             Frame frame = mSession.update();
+
+            if (suf != null) {
+                if(!suf.getHolder().getSurface().isValid()){
+                    return;
+                }
+
+                try {
+//                    Image img = frame.acquireCameraImage(); // get raw camera
+
+//                    byte[] bytes = imageToByte(img);
+//                    Bitmap bitmapImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
+//                    can.drawBitmap(bitmapImage, 0, 0, new Paint());
+                    Bitmap.Config conf = Bitmap.Config.ARGB_8888; // see other conf types
+                    Bitmap bmp = Bitmap.createBitmap(suf.getWidth(), suf.getHeight(), conf);
+
+
+                    PixelCopy.request(
+                        arFragment.getArSceneView(),
+                        bmp,
+                            copyResult -> {
+                                if (PixelCopy.SUCCESS == copyResult) {
+                                    Canvas can = suf.getHolder().lockCanvas();
+                                    Matrix matrix = new Matrix();
+                                    // onSuccessCallback(bitmap)
+                                    matrix.postScale(1, -1, suf.getWidth() / 2 , suf.getHeight() / 2);
+                                    if (can != null) {
+                                        can.drawBitmap(bmp, matrix, null);
+                                        suf.getHolder().unlockCanvasAndPost(can);
+                                    }
+
+                                } else {
+                                    // onErrorCallback()
+                                }
+                            }, arFragment.getArSceneView().getHandler());
+
+
+//                    img.close();
+
+                }
+//                catch (NotYetAvailableException e) {
+//
+//                }
+                catch (DeadlineExceededException e) {}
+            }
+
             cloudAnchorManager.onUpdate();
             nowCamPose = frame.getCamera().getPose();
             for (Plane plane : frame.getUpdatedTrackables(Plane.class)) {
