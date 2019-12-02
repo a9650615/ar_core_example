@@ -1,17 +1,13 @@
 package com.example.arcoreexample;
 
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
-import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -21,11 +17,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.PixelCopy;
 import android.view.SurfaceView;
@@ -36,6 +30,7 @@ import android.widget.ListView;
 import android.widget.Toast;
 
 import com.example.arcoreexample.model.ModelLinksManager;
+import com.example.arcoreexample.renderer.BackgroundRenderer;
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Config;
@@ -47,7 +42,6 @@ import com.google.ar.core.Session;
 import com.google.ar.core.TrackingState;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.DeadlineExceededException;
-import com.google.ar.core.exceptions.NotYetAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
 import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
 import com.google.ar.core.exceptions.UnavailableDeviceNotCompatibleException;
@@ -64,22 +58,21 @@ import com.google.ar.sceneform.rendering.Color;
 import com.google.ar.sceneform.rendering.MaterialFactory;
 import com.google.ar.sceneform.rendering.ModelRenderable;
 import com.google.ar.sceneform.rendering.ShapeFactory;
-import com.google.ar.sceneform.rendering.Texture;
 import com.google.ar.sceneform.rendering.ViewRenderable;
 import com.google.ar.sceneform.ux.ArFragment;
 import com.google.common.base.Preconditions;
 import com.google.firebase.database.DatabaseError;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-
     private enum HostResolveMode {
         NONE,
         HOSTING,
@@ -113,6 +106,8 @@ public class MainActivity extends AppCompatActivity {
     private int tempHostCount = 0;
     final private boolean DEBUG = false;
     private boolean isFirstResolve;
+    private boolean blackScreen = false;
+    private final BackgroundRenderer mBackgroundRenderer = new BackgroundRenderer();
 
     private Display display;
 
@@ -176,6 +171,12 @@ public class MainActivity extends AppCompatActivity {
                 initScene();
             }
         });
+
+
+//        mSession.setCameraTextureName(0);
+
+//        ColorDrawable  colorDrawable = new ColorDrawable(0xFFFF6666);
+//        arFragment.getArSceneView().setCameraStreamRenderPriority(7);
 
 //        ModelRenderable.builder()
 //                .setSource(this, R.raw.andy)
@@ -294,7 +295,18 @@ public class MainActivity extends AppCompatActivity {
         return bitmap;
     }
 
-   public void initScene() {
+    public void onSwitchBG(View view) {
+        blackScreen = !blackScreen;
+//        mSession.setCameraTextureName(mBackgroundRenderer.getTextureId());
+        if(blackScreen) {
+            mSession.setCameraTextureName(0);
+        } else {
+            mSession.setCameraTextureName(mBackgroundRenderer.getTextureId() - 1);
+//        mSession.setCameraTextureName()
+        };
+    }
+
+    public void initScene() {
         try {
             Frame frame = mSession.update();
 
@@ -303,15 +315,21 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
+                mBackgroundRenderer.draw(frame);
+
+//                if (blackScreen) {
+//                    mSession.setCameraTextureName(-1); // Turn into black screen
+//                }
+
                 try {
 //                    Image img = frame.acquireCameraImage(); // get raw camera
 
 //                    byte[] bytes = imageToByte(img);
 //                    Bitmap bitmapImage = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, null);
 //                    can.drawBitmap(bitmapImage, 0, 0, new Paint());
+
                     Bitmap.Config conf = Bitmap.Config.ARGB_8888; // see other conf types
                     Bitmap bmp = Bitmap.createBitmap(suf.getWidth(), suf.getHeight(), conf);
-
 
                     PixelCopy.request(
                         arFragment.getArSceneView(),
@@ -404,6 +422,13 @@ public class MainActivity extends AppCompatActivity {
         mSession.configure(config);
         arFragment.getArSceneView().setupSession(mSession);
         cloudAnchorManager.setSession(mSession);
+
+        try {
+            mBackgroundRenderer.createOnGlThread(/*context=*/ this);
+//            mSession.setCameraTextureName(1);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
